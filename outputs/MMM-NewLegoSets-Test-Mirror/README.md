@@ -31,7 +31,7 @@ PORT=4180 npm start
 - Automatic cycling, pause/play, forced refresh, and manual next-set transitions.
 - The complete normalized configuration through the JSON editor.
 
-The Diagnostics tab reports visible item count, loaded products, broken images, root overflow, canvas bounds, data parser, current index, cycle state, and the next polling time.
+The Diagnostics tab reports visible item count, loaded products, broken images, root overflow, nested carousel/filmstrip clipping, canvas bounds, data parser, current index, cycle state, and the next polling time.
 
 ## JSON workflow
 

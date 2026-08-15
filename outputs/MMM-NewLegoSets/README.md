@@ -115,8 +115,8 @@ Set `layout` to one of these classic product-display arrangements:
 | `grid` | Uniform card grid | Galleries and 4-10 products. |
 | `compact` | Dense small-thumbnail rows | Small regions or many facts. |
 | `split` | Image-led wide cards | Large landscape regions. |
-| `carousel` | Main product and thumbnail rail | A hero plus previews. |
-| `filmstrip` | Horizontal card sequence | Wide, shallow regions. |
+| `carousel` | Main product and wrapping thumbnail rail | A hero plus complete previews without a clipped tail. |
+| `filmstrip` | Equal-width horizontal card sequence | Wide, shallow regions where every selected product must remain visible. |
 | `masonry` | Flowing multi-column cards | Varied metadata lengths. |
 | `table` | Dense aligned rows | Maximum scan speed. |
 

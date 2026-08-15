@@ -224,6 +224,7 @@ Module.register("MMM-NewLegoSets", {
 		if (layout === "carousel") return this.buildCarousel(sets);
 		const container = document.createElement("div");
 		container.className = `nl-items nl-items-${layout}`;
+		if (layout === "filmstrip") container.style.setProperty("--nl-filmstrip-count", String(Math.max(sets.length, 1)));
 		sets.forEach((set, index) => container.appendChild(this.buildCard(set, index, layout)));
 		return container;
 	},

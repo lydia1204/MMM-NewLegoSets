@@ -133,9 +133,8 @@
 }
 
 .nl-items-filmstrip {
-	grid-auto-flow: column;
-	grid-auto-columns: minmax(var(--nl-card-min-width), 1fr);
-	overflow: hidden;
+	grid-template-columns: repeat(var(--nl-filmstrip-count), minmax(0, 1fr));
+	overflow: visible;
 }
 
 .nl-items-masonry {
@@ -338,10 +337,9 @@
 
 .nl-carousel-rail {
 	display: grid;
-	grid-auto-flow: column;
-	grid-auto-columns: minmax(100px, 1fr);
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 82px), 1fr));
 	gap: max(5px, calc(var(--nl-gap) * 0.65));
-	overflow: hidden;
+	overflow: visible;
 }
 
 .nl-card-carousel-thumb {
@@ -354,6 +352,31 @@
 
 .nl-card-carousel-thumb .nl-image-wrap {
 	height: 86px;
+}
+
+.nl-card-filmstrip {
+	gap: 5px;
+	padding: max(4px, calc(var(--nl-card-padding) * 0.55));
+	font-size: 0.72em;
+}
+
+.nl-layout-filmstrip .nl-image-wrap {
+	width: 100%;
+	min-width: 0;
+	height: auto;
+	aspect-ratio: 1 / 1;
+}
+
+.nl-card-filmstrip .nl-details {
+	gap: 2px;
+}
+
+.nl-card-filmstrip .nl-field:not(.nl-field-name):not(.nl-field-price) {
+	font-size: 0.72em !important;
+}
+
+.nl-card-filmstrip .nl-field-label {
+	display: none;
 }
 
 .nl-table {

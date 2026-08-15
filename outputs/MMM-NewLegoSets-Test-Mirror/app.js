@@ -386,6 +386,8 @@
 		const brokenImages = images.filter((image) => image.complete && image.naturalWidth === 0).length;
 		const itemCount = root ? root.querySelectorAll(".nl-card, .nl-table-row").length : 0;
 		const rootOverflow = root ? root.scrollWidth > root.clientWidth + 1 : true;
+		const clippedLayout = root ? Array.from(root.querySelectorAll(".nl-carousel-rail, .nl-items-filmstrip"))
+			.some((container) => container.scrollWidth > container.clientWidth + 1 || container.scrollHeight > container.clientHeight + 1) : true;
 		const regionRect = elements.region.getBoundingClientRect();
 		const canvasRect = elements.canvas.getBoundingClientRect();
 		const outOfCanvas = regionRect.left < canvasRect.left - 1 || regionRect.right > canvasRect.right + 1 || regionRect.top < canvasRect.top - 1 || regionRect.bottom > canvasRect.bottom + 1;
@@ -393,6 +395,7 @@
 		const problems = [];
 		if (!root) problems.push("Module DOM missing");
 		if (rootOverflow) problems.push("Internal horizontal overflow");
+		if (clippedLayout) problems.push("Carousel or filmstrip content is clipped");
 		if (outOfCanvas) problems.push("Region extends outside canvas");
 		if (brokenImages) problems.push(`${brokenImages} broken image${brokenImages === 1 ? "" : "s"}`);
 		if (itemCount !== expected) problems.push(`Expected ${expected} visible products; found ${itemCount}`);
@@ -411,6 +414,7 @@
 			["Fetched", dataDetails.fetchedAt ? new Date(dataDetails.fetchedAt).toLocaleString() : "Never"],
 			["Images", `${images.length} rendered / ${brokenImages} broken`],
 			["Root overflow", rootOverflow ? "FAIL" : "Pass"],
+			["Layout clipping", clippedLayout ? "FAIL" : "Pass"],
 			["Canvas bounds", outOfCanvas ? "FAIL" : "Pass"],
 		];
 		elements.diagnosticList.replaceChildren(...rows.flatMap(([term, detail]) => {
