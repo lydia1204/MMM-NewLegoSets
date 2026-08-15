@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>MMM-NewLegoSets validation harness</title>
+	<link rel="stylesheet" href="../../outputs/MMM-NewLegoSets/MMM-NewLegoSets.css">
+	<style>
+		html, body { margin: 0; min-height: 100%; background: #111; color: #fff; font-family: Roboto, Arial, sans-serif; }
+		body { box-sizing: border-box; padding: 24px; }
+		#mount { width: 100%; display: flex; justify-content: center; }
+	</style>
+	<script>
+		window.Module = { register: function (_name, definition) { window.moduleDefinition = definition; } };
+		window.Log = { warn: console.warn, error: console.error, info: console.info };
+	</script>
+	<script src="../../outputs/MMM-NewLegoSets/config.js"></script>
+	<script src="../../outputs/MMM-NewLegoSets/themes.js"></script>
+	<script src="../../outputs/MMM-NewLegoSets/MMM-NewLegoSets.js"></script>
+	<script defer src="preview.js"></script>
+</head>
+<body>
+	<main id="mount"></main>
+</body>
+</html>

@@ -1,0 +1,19 @@
+.DS_Store
+**/.DS_Store
+
+# Generated release archives
+outputs/*.zip
+
+# Runtime caches
+outputs/MMM-NewLegoSets/.cache/
+
+# Research captures and visual/package QA output
+work/*.html
+work/pdf-render*/
+work/package-check*/
+work/test-bundle-check*/
+work/pdf-guide-text.txt
+
+# Local tooling noise
+node_modules/
+*.log

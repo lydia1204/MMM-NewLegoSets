@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>MMM-NewLegoSets Test Mirror</title>
+	<link rel="stylesheet" href="/module/MMM-NewLegoSets.css">
+	<link rel="stylesheet" href="/app.css">
+	<script>
+		window.Module = { register: function (_name, definition) { window.moduleDefinition = definition; } };
+		window.Log = { warn: console.warn, error: console.error, info: console.info };
+	</script>
+	<script src="/module/config.js"></script>
+	<script src="/module/themes.js"></script>
+	<script src="/module/MMM-NewLegoSets.js"></script>
+	<script defer src="/app.js"></script>
+</head>
+<body>
+	<header class="app-header">
+		<div>
+			<h1>MMM-NewLegoSets Test Mirror</h1>
+			<p>Live module canvas and configuration laboratory</p>
+		</div>
+		<div class="header-actions">
+			<span id="data-status" class="status-pill is-loading">Loading live LEGO data</span>
+			<button id="refresh-data" class="button" type="button">Refresh data</button>
+			<button id="toggle-cycle" class="button" type="button">Pause</button>
+			<button id="next-slide" class="button button-primary" type="button">Next set</button>
+		</div>
+	</header>
+
+	<main class="workspace">
+		<section class="preview-panel" aria-label="Mirror preview">
+			<div class="preview-toolbar">
+				<label>Device
+					<select id="device-preset">
+						<option value="portrait">Portrait 1080 x 1920</option>
+						<option value="landscape">Landscape 1920 x 1080</option>
+						<option value="compact">Compact 420 x 900</option>
+						<option value="desktop">Desktop 1280 x 800</option>
+						<option value="custom">Custom</option>
+					</select>
+				</label>
+				<label>Region
+					<select id="region-preset">
+						<option value="top_left">Top left</option>
+						<option value="top_center">Top center</option>
+						<option value="top_right" selected>Top right</option>
+						<option value="upper_third">Upper third</option>
+						<option value="middle_center">Middle center</option>
+						<option value="lower_third">Lower third</option>
+						<option value="bottom_left">Bottom left</option>
+						<option value="bottom_center">Bottom center</option>
+						<option value="bottom_right">Bottom right</option>
+					</select>
+				</label>
+				<div id="custom-dimensions" class="custom-dimensions" hidden>
+					<label>W <input id="custom-width" type="number" min="320" max="3840" value="1080"></label>
+					<label>H <input id="custom-height" type="number" min="320" max="3840" value="1920"></label>
+				</div>
+				<span id="scale-readout" class="scale-readout">Scale 100%</span>
+			</div>
+			<div id="preview-stage" class="preview-stage">
+				<div id="mirror-scaler" class="mirror-scaler">
+					<div id="mirror-canvas" class="mirror-canvas" data-device="portrait">
+						<div class="ambient ambient-clock"><strong id="mirror-time">10:28</strong><span id="mirror-date">Saturday, August 15</span></div>
+						<div class="ambient ambient-weather"><strong>72&deg;</strong><span>Clear</span></div>
+						<div class="ambient ambient-calendar"><strong>Today</strong><span>Module testing</span><span>Review new LEGO sets</span></div>
+						<div id="module-region" class="module-region" data-region="top_right"></div>
+						<div class="mirror-label">MAGICMIRROR TEST CANVAS <span id="canvas-size">1080 x 1920</span></div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<aside class="inspector" aria-label="Module controls">
+			<div class="tabs" role="tablist">
+				<button class="tab is-active" data-tab="quick" role="tab" type="button">Quick</button>
+				<button class="tab" data-tab="fields" role="tab" type="button">Fields</button>
+				<button class="tab" data-tab="json" role="tab" type="button">JSON</button>
+				<button class="tab" data-tab="diagnostics" role="tab" type="button">Diagnostics</button>
+			</div>
+
+			<section id="tab-quick" class="tab-panel is-active">
+				<div class="control-grid">
+					<label>Layout<select id="layout-control"></select></label>
+					<label>Theme<select id="theme-control"></select></label>
+					<label>Animation<select id="animation-control"></select></label>
+					<label>Indicator<select id="indicator-control"><option>dots</option><option>bars</option><option>numbers</option><option>none</option></select></label>
+				</div>
+				<div class="range-control"><label for="count-control">Visible products <output id="count-output">1</output></label><input id="count-control" type="range" min="1" max="10" step="1" value="1"></div>
+				<div class="range-control"><label for="columns-control">Columns <output id="columns-output">2</output></label><input id="columns-control" type="range" min="1" max="10" step="1" value="2"></div>
+				<div class="range-control"><label for="cycle-control">Slide interval <output id="cycle-output">12s</output></label><input id="cycle-control" type="range" min="2" max="60" step="1" value="12"></div>
+				<div class="range-control"><label for="duration-control">Animation duration <output id="duration-output">1100ms</output></label><input id="duration-control" type="range" min="0" max="3000" step="50" value="1100"></div>
+				<div class="range-control"><label for="width-control">Module max width <output id="width-output">760px</output></label><input id="width-control" type="range" min="160" max="1400" step="10" value="760"></div>
+				<div class="range-control"><label for="font-size-control">Base font size <output id="font-size-output">16px</output></label><input id="font-size-control" type="range" min="8" max="36" step="1" value="16"></div>
+				<div class="range-control"><label for="image-opacity-control">Image opacity <output id="image-opacity-output">100%</output></label><input id="image-opacity-control" type="range" min="0" max="1" step="0.05" value="1"></div>
+				<div class="control-grid">
+					<label>Polling interval<select id="poll-control"><option value="60000">1 minute</option><option value="300000">5 minutes</option><option value="900000">15 minutes</option><option value="3600000">1 hour</option><option value="21600000" selected>6 hours</option><option value="43200000">12 hours</option><option value="86400000">24 hours</option></select></label>
+					<label>Data source<select id="data-mode"><option value="live">Live LEGO.com</option><option value="sample">Sample fallback</option></select></label>
+				</div>
+				<div class="toggle-grid">
+					<label><input id="decorations-control" type="checkbox" checked> Theme decorations</label>
+					<label><input id="header-control" type="checkbox" checked> Header</label>
+					<label><input id="footer-control" type="checkbox" checked> Footer</label>
+					<label><input id="indicators-control" type="checkbox" checked> Indicators</label>
+					<label><input id="reduced-motion-control" type="checkbox" checked> Respect reduced motion</label>
+					<label><input id="loop-control" type="checkbox" checked> Loop products</label>
+				</div>
+			</section>
+
+			<section id="tab-fields" class="tab-panel">
+				<p class="panel-note">Show or hide each part of the actual module.</p>
+				<div id="field-controls" class="field-controls"></div>
+				<div class="control-grid field-extra">
+					<label>Text effect<select id="text-effect-control"></select></label>
+					<label>Image fit<select id="image-fit-control"><option>contain</option><option>cover</option><option>fill</option><option>scale-down</option></select></label>
+				</div>
+			</section>
+
+			<section id="tab-json" class="tab-panel">
+				<div class="json-actions">
+					<button id="apply-json" class="button button-primary" type="button">Apply JSON</button>
+					<button id="format-json" class="button" type="button">Format</button>
+					<button id="reset-config" class="button" type="button">Reset</button>
+					<button id="download-config" class="button" type="button">Download</button>
+				</div>
+				<textarea id="config-editor" spellcheck="false" aria-label="Module JSON configuration"></textarea>
+				<p id="json-error" class="json-error" role="alert"></p>
+			</section>
+
+			<section id="tab-diagnostics" class="tab-panel">
+				<div id="diagnostic-summary" class="diagnostic-summary"></div>
+				<dl id="diagnostic-list" class="diagnostic-list"></dl>
+				<h2>Configuration warnings</h2>
+				<ul id="warning-list" class="warning-list"></ul>
+			</section>
+		</aside>
+	</main>
+</body>
+</html>
