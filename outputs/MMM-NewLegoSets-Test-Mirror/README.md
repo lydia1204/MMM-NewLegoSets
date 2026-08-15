@@ -26,12 +26,14 @@ PORT=4180 npm start
 - Nine standard MagicMirror-style positions.
 - Every registered layout, theme, animation, and text effect.
 - One through ten visible products.
-- Independent polling and slideshow intervals.
+- Timed transitions or continuous hero/carousel/filmstrip scrolling with configurable pixel speed and direction.
+- All indicator shapes; the quick selector displays the actual symbol instead of its internal setting name.
+- The full clipped brick-wall fall/rebuild transition, including its final solid state.
 - Module width, columns, font size, image transparency, image fitting, and field visibility.
 - Automatic cycling, pause/play, forced refresh, and manual next-set transitions.
 - The complete normalized configuration through the JSON editor.
 
-The Diagnostics tab reports visible item count, loaded products, broken images, root overflow, nested carousel/filmstrip clipping, canvas bounds, data parser, current index, cycle state, and the next polling time.
+The Diagnostics tab reports visible item count, loaded products, broken images, root overflow, nested carousel/filmstrip clipping, canvas bounds, data parser, current index, cycle mode/speed, and the next polling time. In auto-scroll mode it counts the current group only; the offscreen pre-rendered group is intentionally excluded.
 
 ## JSON workflow
 

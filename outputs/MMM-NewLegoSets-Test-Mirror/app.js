@@ -46,7 +46,7 @@
 		productCount: 1,
 		theme: "lego",
 		data: { poolSize: 10, pollInterval: 6 * 60 * 60 * 1000 },
-		cycle: { enabled: true, interval: 12 * 1000 },
+		cycle: { enabled: true, mode: "transition", interval: 12 * 1000, scrollSpeed: 60, scrollDirection: "left" },
 		animation: { name: "legoBreakBuild", duration: 1100 },
 		layoutSettings: { moduleWidth: "100%", moduleMaxWidth: 760, columns: 2 },
 	};
@@ -106,6 +106,8 @@
 		pollTimer: null,
 		cycleTimer: null,
 		retryTimer: null,
+		transitionTimer: null,
+		scrollTimer: null,
 		domId: "mmm-new-lego-live-test",
 		updateDom: function () { renderModule(); },
 	});
@@ -141,6 +143,7 @@
 
 	function restartCycle() {
 		clearTimeout(instance.cycleTimer);
+		clearTimeout(instance.scrollTimer);
 		instance.transitioning = false;
 		instance.pendingEnterAnimation = null;
 		instance.suspended = !cyclePlaying;
@@ -152,9 +155,11 @@
 		const result = configApi.normalize(nextRaw);
 		clearTimeout(instance.cycleTimer);
 		clearTimeout(instance.transitionTimer);
+		clearTimeout(instance.scrollTimer);
 		instance.transitioning = false;
 		instance.pendingEnterAnimation = null;
 		instance.transitionTimer = null;
+		instance.scrollTimer = null;
 		config = result.config;
 		warnings = result.warnings;
 		window.localStorage.setItem(storageKey, JSON.stringify(config));
@@ -210,12 +215,16 @@
 		document.getElementById("theme-control").value = config.theme;
 		document.getElementById("animation-control").value = config.animation.name;
 		document.getElementById("indicator-control").value = config.cycle.indicatorStyle;
+		document.getElementById("cycle-mode-control").value = config.cycle.mode;
+		document.getElementById("scroll-direction-control").value = config.cycle.scrollDirection;
 		document.getElementById("count-control").value = config.productCount;
 		document.getElementById("count-output").value = config.productCount;
 		document.getElementById("columns-control").value = config.layoutSettings.columns;
 		document.getElementById("columns-output").value = config.layoutSettings.columns;
 		document.getElementById("cycle-control").value = config.cycle.interval / 1000;
 		document.getElementById("cycle-output").value = `${config.cycle.interval / 1000}s`;
+		document.getElementById("scroll-speed-control").value = config.cycle.scrollSpeed;
+		document.getElementById("scroll-speed-output").value = `${config.cycle.scrollSpeed}px/s`;
 		document.getElementById("duration-control").value = config.animation.duration;
 		document.getElementById("duration-output").value = `${config.animation.duration}ms`;
 		document.getElementById("width-control").value = config.layoutSettings.moduleMaxWidth;
@@ -360,6 +369,13 @@
 		cyclePlaying = !cyclePlaying;
 		instance.suspended = !cyclePlaying;
 		clearTimeout(instance.cycleTimer);
+		clearTimeout(instance.scrollTimer);
+		clearTimeout(instance.transitionTimer);
+		if (!cyclePlaying) {
+			instance.transitioning = false;
+			instance.pendingEnterAnimation = null;
+			renderModule();
+		}
 		if (cyclePlaying) instance.scheduleCycle();
 		updateCycleButton();
 		updateDiagnostics();
@@ -382,11 +398,13 @@
 
 	function updateDiagnostics() {
 		const root = elements.region.querySelector(".mmm-new-lego-sets");
-		const images = root ? Array.from(root.querySelectorAll("img")) : [];
+		const images = root ? Array.from(root.querySelectorAll("img")).filter((image) => !image.closest(".nl-wall-layer")) : [];
 		const brokenImages = images.filter((image) => image.complete && image.naturalWidth === 0).length;
-		const itemCount = root ? root.querySelectorAll(".nl-card, .nl-table-row").length : 0;
-		const rootOverflow = root ? root.scrollWidth > root.clientWidth + 1 : true;
-		const clippedLayout = root ? Array.from(root.querySelectorAll(".nl-carousel-rail, .nl-items-filmstrip"))
+		const itemScope = root && root.querySelector(".nl-scroll-slide-current") || root;
+		const itemCount = itemScope ? Array.from(itemScope.querySelectorAll(".nl-card, .nl-table-row")).filter((item) => !item.closest(".nl-wall-layer")).length : 0;
+		const wallAnimating = Boolean(root && root.querySelector(":scope > .nl-wall-layer"));
+		const rootOverflow = root ? (!wallAnimating && root.scrollWidth > root.clientWidth + 1) : true;
+		const clippedLayout = root ? Array.from(root.querySelectorAll(".nl-carousel-rail, .nl-items-filmstrip")).filter((container) => !container.closest(".nl-wall-layer"))
 			.some((container) => container.scrollWidth > container.clientWidth + 1 || container.scrollHeight > container.clientHeight + 1) : true;
 		const regionRect = elements.region.getBoundingClientRect();
 		const canvasRect = elements.canvas.getBoundingClientRect();
@@ -408,7 +426,9 @@
 			["Layout / theme", `${config.layout} / ${config.theme}`],
 			["Products", `${itemCount} visible / ${sets.length} loaded`],
 			["Current index", `${instance.currentIndex + 1} of ${sets.length}`],
-			["Cycle", `${cyclePlaying ? "Playing" : "Paused"}, every ${config.cycle.interval / 1000}s`],
+			["Cycle", config.cycle.mode === "scroll"
+				? `${cyclePlaying ? "Playing" : "Paused"}, ${config.cycle.scrollSpeed}px/s ${config.cycle.scrollDirection}`
+				: `${cyclePlaying ? "Playing" : "Paused"}, every ${config.cycle.interval / 1000}s`],
 			["Next poll", pollText],
 			["Data", `${dataDetails.source || "Unknown"} - ${dataDetails.parserVersions?.join(", ") || "no parser label"}`],
 			["Fetched", dataDetails.fetchedAt ? new Date(dataDetails.fetchedAt).toLocaleString() : "Never"],
@@ -467,6 +487,8 @@
 		bindSelect("theme-control", (value) => mutateConfig((next) => { next.theme = value; }));
 		bindSelect("animation-control", (value) => mutateConfig((next) => { next.animation.name = value; }));
 		bindSelect("indicator-control", (value) => mutateConfig((next) => { next.cycle.indicatorStyle = value; }));
+		bindSelect("cycle-mode-control", (value) => mutateConfig((next) => { next.cycle.mode = value; }));
+		bindSelect("scroll-direction-control", (value) => mutateConfig((next) => { next.cycle.scrollDirection = value; }));
 		bindSelect("poll-control", (value) => mutateConfig((next) => { next.data.pollInterval = Number(value); }));
 		bindSelect("text-effect-control", (value) => mutateConfig((next) => { next.typography.textEffect = value; }));
 		bindSelect("image-fit-control", (value) => mutateConfig((next) => { next.fields.image.fit = value; }));
@@ -477,6 +499,7 @@
 		bindRange("count-control", "count-output", String, (value) => mutateConfig((next) => { next.productCount = value; }));
 		bindRange("columns-control", "columns-output", String, (value) => mutateConfig((next) => { next.layoutSettings.columns = value; }));
 		bindRange("cycle-control", "cycle-output", (value) => `${value}s`, (value) => mutateConfig((next) => { next.cycle.interval = value * 1000; }));
+		bindRange("scroll-speed-control", "scroll-speed-output", (value) => `${value}px/s`, (value) => mutateConfig((next) => { next.cycle.scrollSpeed = value; }));
 		bindRange("duration-control", "duration-output", (value) => `${value}ms`, (value) => mutateConfig((next) => { next.animation.duration = value; }));
 		bindRange("width-control", "width-output", (value) => `${value}px`, (value) => mutateConfig((next) => { next.layoutSettings.moduleMaxWidth = value; }));
 		bindRange("font-size-control", "font-size-output", (value) => `${value}px`, (value) => mutateConfig((next) => { next.typography.baseFontSize = value; }));

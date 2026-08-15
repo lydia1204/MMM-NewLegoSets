@@ -31,6 +31,7 @@ Module.register("MMM-NewLegoSets", {
 		this.cycleTimer = null;
 		this.retryTimer = null;
 		this.transitionTimer = null;
+		this.scrollTimer = null;
 		this.domId = `mmm-new-lego-${String(this.identifier).replace(/[^a-zA-Z0-9_-]/g, "-")}`;
 
 		if (this.config.debug && this.configWarnings.length) {
@@ -57,10 +58,12 @@ Module.register("MMM-NewLegoSets", {
 		clearTimeout(this.cycleTimer);
 		clearTimeout(this.retryTimer);
 		clearTimeout(this.transitionTimer);
+		clearTimeout(this.scrollTimer);
 		this.pollTimer = null;
 		this.cycleTimer = null;
 		this.retryTimer = null;
 		this.transitionTimer = null;
+		this.scrollTimer = null;
 	},
 
 	fetchSets: function () {
@@ -87,6 +90,10 @@ Module.register("MMM-NewLegoSets", {
 	scheduleCycle: function () {
 		clearTimeout(this.cycleTimer);
 		if (this.suspended || !this.config.cycle.enabled || this.sets.length <= this.config.productCount) return;
+		if (this.isScrollMode()) {
+			this.cycleTimer = setTimeout(() => this.advanceScroll(), 100);
+			return;
+		}
 		this.cycleTimer = setTimeout(() => this.advanceCycle(), this.config.cycle.interval);
 	},
 
@@ -129,7 +136,7 @@ Module.register("MMM-NewLegoSets", {
 		wrapper.className = `mmm-new-lego-sets nl-theme-${this.config.theme} nl-decoration-${this.config.showThemeDecorations ? theme.decoration : "none"} nl-layout-${layout}`;
 		this.applyRootStyles(wrapper, theme);
 
-		if (this.pendingEnterAnimation) {
+		if (this.pendingEnterAnimation && this.pendingEnterAnimation !== "brickWallRebuild") {
 			wrapper.classList.add(`nl-cycle-in-${this.animationClass(this.pendingEnterAnimation)}`);
 			wrapper.style.setProperty("--nl-animation-duration", `${this.config.animation.duration}ms`);
 			wrapper.style.setProperty("--nl-animation-easing", this.config.animation.easing);
@@ -158,11 +165,14 @@ Module.register("MMM-NewLegoSets", {
 			return wrapper;
 		}
 
-		wrapper.appendChild(this.buildLayout(this.getDisplaySets(), layout));
+		wrapper.appendChild(this.isScrollMode(layout) ? this.buildScrollLayout(layout) : this.buildLayout(this.getDisplaySets(), layout));
 		if (this.config.cycle.showIndicators && this.config.cycle.indicatorStyle !== "none") {
 			wrapper.appendChild(this.buildIndicators());
 		}
 		if (this.config.layoutSettings.showFooter) wrapper.appendChild(this.buildFooter());
+		if (this.pendingEnterAnimation === "brickWallRebuild") {
+			setTimeout(() => this.activateIncomingBrickWall(), 0);
+		}
 		return wrapper;
 	},
 
@@ -209,14 +219,51 @@ Module.register("MMM-NewLegoSets", {
 	},
 
 	getDisplaySets: function () {
+		return this.getDisplaySetsAt(this.currentIndex);
+	},
+
+	getDisplaySetsAt: function (startIndex) {
 		const count = Math.min(this.config.productCount, this.sets.length);
 		const visible = [];
 		for (let offset = 0; offset < count; offset += 1) {
-			const index = this.currentIndex + offset;
+			const index = startIndex + offset;
 			if (!this.config.cycle.loop && index >= this.sets.length) break;
 			visible.push(this.sets[index % this.sets.length]);
 		}
 		return visible;
+	},
+
+	nextCycleIndex: function () {
+		const next = this.currentIndex + this.config.cycle.step;
+		if (next < this.sets.length) return next;
+		return this.config.cycle.loop ? next % this.sets.length : Math.max(this.sets.length - this.config.productCount, 0);
+	},
+
+	isScrollMode: function (layout) {
+		const activeLayout = layout || this.resolveLayout();
+		if (this.config.cycle.mode !== "scroll" || !["hero", "carousel", "filmstrip"].includes(activeLayout)) return false;
+		return !(this.config.animation.respectReducedMotion && window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+	},
+
+	buildScrollLayout: function (layout) {
+		const direction = this.config.cycle.scrollDirection;
+		const viewport = document.createElement("div");
+		viewport.className = `nl-scroll-viewport nl-scroll-${direction}`;
+		const track = document.createElement("div");
+		track.className = "nl-scroll-track";
+		const current = this.buildScrollSlide(this.getDisplaySets(), layout, "current");
+		const next = this.buildScrollSlide(this.getDisplaySetsAt(this.nextCycleIndex()), layout, "next");
+		track.appendChild(current);
+		track.appendChild(next);
+		viewport.appendChild(track);
+		return viewport;
+	},
+
+	buildScrollSlide: function (sets, layout, role) {
+		const slide = document.createElement("div");
+		slide.className = `nl-scroll-slide nl-scroll-slide-${role}`;
+		slide.appendChild(this.buildLayout(sets, layout));
+		return slide;
 	},
 
 	buildLayout: function (sets, layout) {
@@ -407,10 +454,12 @@ Module.register("MMM-NewLegoSets", {
 		const currentPage = Math.min(Math.floor(this.currentIndex / step), pages - 1);
 		const indicators = document.createElement("div");
 		indicators.className = `nl-indicators nl-indicators-${this.config.cycle.indicatorStyle}`;
+		const glyphs = { rings: "○", squares: "■", diamonds: "◆", triangles: "▲", stars: "★", hearts: "♥", hexagons: "⬢" };
 		for (let index = 0; index < pages; index += 1) {
 			const indicator = document.createElement("span");
 			indicator.className = `nl-indicator${index === currentPage ? " is-active" : ""}`;
 			if (this.config.cycle.indicatorStyle === "numbers") indicator.textContent = String(index + 1);
+			if (glyphs[this.config.cycle.indicatorStyle]) indicator.textContent = glyphs[this.config.cycle.indicatorStyle];
 			indicators.appendChild(indicator);
 		}
 		return indicators;
@@ -435,32 +484,72 @@ Module.register("MMM-NewLegoSets", {
 	},
 
 	advanceCycle: function () {
+		if (this.isScrollMode()) {
+			this.advanceScroll();
+			return;
+		}
 		if (this.transitioning || this.suspended || this.sets.length <= this.config.productCount) return;
 		this.transitioning = true;
 		const animation = this.effectiveAnimation();
 		const duration = animation === "none" ? 0 : this.config.animation.duration;
 		const root = document.getElementById(this.domId);
-		if (root && animation !== "none") {
-			root.classList.add(`nl-cycle-out-${this.animationClass(animation)}`);
+		if (root) {
 			root.style.setProperty("--nl-animation-duration", `${duration}ms`);
 			root.style.setProperty("--nl-animation-easing", this.config.animation.easing);
+		}
+		if (root && animation === "brickWallRebuild") {
+			root.appendChild(this.buildBrickWallLayer(root, "out"));
+			root.classList.add("nl-wall-source-hidden");
+		} else if (root && animation !== "none") {
+			root.classList.add(`nl-cycle-out-${this.animationClass(animation)}`);
 			if (["legoBuild", "legoBreakBuild"].includes(animation)) root.appendChild(this.buildBrickLayer("out"));
 		}
-		const outgoingFraction = ["legoBuild", "legoBreakBuild"].includes(animation) ? 1 : 0.72;
+		const wallDelay = animation === "brickWallRebuild"
+			? (this.config.animation.wallRows * this.config.animation.wallColumns - 1) * this.config.animation.stagger
+			: 0;
+		const outgoingFraction = ["legoBuild", "legoBreakBuild", "brickWallRebuild"].includes(animation) ? 1 : 0.72;
 		clearTimeout(this.transitionTimer);
 		this.transitionTimer = setTimeout(() => {
-			const next = this.currentIndex + this.config.cycle.step;
-			if (next >= this.sets.length) {
-				this.currentIndex = this.config.cycle.loop ? next % this.sets.length : Math.max(this.sets.length - this.config.productCount, 0);
-			} else {
-				this.currentIndex = next;
-			}
+			this.currentIndex = this.nextCycleIndex();
 			this.pendingEnterAnimation = animation;
-			this.transitioning = false;
+			if (animation !== "brickWallRebuild") this.transitioning = false;
 			this.transitionTimer = null;
 			this.updateDom(0);
+			if (animation !== "brickWallRebuild") this.scheduleCycle();
+		}, Math.max(duration * outgoingFraction + wallDelay, 0));
+	},
+
+	advanceScroll: function () {
+		if (this.transitioning || this.suspended || !this.isScrollMode() || this.sets.length <= this.config.productCount) return;
+		const root = document.getElementById(this.domId);
+		const viewport = root && root.querySelector(".nl-scroll-viewport");
+		const track = viewport && viewport.querySelector(".nl-scroll-track");
+		if (!viewport || !track) {
 			this.scheduleCycle();
-		}, Math.max(duration * outgoingFraction, 0));
+			return;
+		}
+		this.transitioning = true;
+		const direction = this.config.cycle.scrollDirection;
+		const vertical = direction === "up" || direction === "down";
+		const distance = vertical ? viewport.clientHeight : viewport.clientWidth;
+		const duration = Math.max((distance / this.config.cycle.scrollSpeed) * 1000, 100);
+		track.style.transition = `transform ${duration}ms linear`;
+		requestAnimationFrame(() => {
+			requestAnimationFrame(() => {
+				const sign = direction === "right" || direction === "down" ? 1 : -1;
+				track.style.transform = vertical
+					? `translate3d(0, ${sign * distance}px, 0)`
+					: `translate3d(${sign * distance}px, 0, 0)`;
+			});
+		});
+		clearTimeout(this.scrollTimer);
+		this.scrollTimer = setTimeout(() => {
+			this.currentIndex = this.nextCycleIndex();
+			this.transitioning = false;
+			this.scrollTimer = null;
+			this.updateDom(0);
+			this.scheduleCycle();
+		}, duration + 40);
 	},
 
 	effectiveAnimation: function () {
@@ -497,6 +586,66 @@ Module.register("MMM-NewLegoSets", {
 			layer.appendChild(brick);
 		}
 		return layer;
+	},
+
+	buildBrickWallLayer: function (root, direction) {
+		const layer = document.createElement("div");
+		layer.className = `nl-wall-layer nl-wall-layer-${direction}`;
+		layer.setAttribute("aria-hidden", "true");
+		const columns = this.config.animation.wallColumns;
+		const rows = this.config.animation.wallRows;
+		const width = root.offsetWidth;
+		const height = root.offsetHeight;
+		for (let row = 0; row < rows; row += 1) {
+			for (let column = 0; column < columns; column += 1) {
+				const left = (column / columns) * width;
+				const top = (row / rows) * height;
+				const right = ((column + 1) / columns) * width;
+				const bottom = ((row + 1) / rows) * height;
+				const brick = document.createElement("div");
+				brick.className = "nl-wall-brick";
+				brick.style.left = `${left}px`;
+				brick.style.top = `${top}px`;
+				brick.style.width = `${right - left + 0.5}px`;
+				brick.style.height = `${bottom - top + 0.5}px`;
+				brick.style.setProperty("--wall-delay", `${(row * columns + column) * this.config.animation.stagger}ms`);
+				brick.style.setProperty("--wall-fall", `${height + 100 + row * 20}px`);
+				brick.style.setProperty("--wall-turn", `${((column + row) % 2 ? 1 : -1) * (3 + (column % 4) * 2)}deg`);
+				const snapshot = root.cloneNode(true);
+				snapshot.removeAttribute("id");
+				snapshot.querySelectorAll("[id], .nl-wall-layer, .nl-brick-layer").forEach((node) => {
+					if (node.matches(".nl-wall-layer, .nl-brick-layer")) node.remove();
+					else node.removeAttribute("id");
+				});
+				snapshot.classList.remove("nl-wall-source-hidden");
+				snapshot.classList.add("nl-wall-snapshot");
+				snapshot.style.width = `${width}px`;
+				snapshot.style.maxWidth = "none";
+				snapshot.style.height = `${height}px`;
+				snapshot.style.transform = `translate(${-left}px, ${-top}px)`;
+				brick.appendChild(snapshot);
+				layer.appendChild(brick);
+			}
+		}
+		return layer;
+	},
+
+	activateIncomingBrickWall: function () {
+		const root = document.getElementById(this.domId);
+		if (!root || this.pendingEnterAnimation !== "brickWallRebuild") return;
+		root.style.setProperty("--nl-animation-duration", `${this.config.animation.duration}ms`);
+		root.style.setProperty("--nl-animation-easing", this.config.animation.easing);
+		root.appendChild(this.buildBrickWallLayer(root, "in"));
+		root.classList.add("nl-wall-source-hidden");
+		clearTimeout(this.transitionTimer);
+		this.transitionTimer = setTimeout(() => {
+			root.querySelectorAll(".nl-wall-layer").forEach((layer) => layer.remove());
+			root.classList.remove("nl-wall-source-hidden");
+			this.pendingEnterAnimation = null;
+			this.transitioning = false;
+			this.transitionTimer = null;
+			this.scheduleCycle();
+		}, this.config.animation.duration + (this.config.animation.wallRows * this.config.animation.wallColumns * this.config.animation.stagger) + 100);
 	},
 
 	shuffleSets: function (sets) {

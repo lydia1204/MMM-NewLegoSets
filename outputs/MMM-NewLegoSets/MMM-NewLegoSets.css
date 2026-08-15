@@ -335,6 +335,29 @@
 	gap: var(--nl-gap);
 }
 
+.nl-scroll-viewport {
+	position: relative;
+	z-index: 2;
+	overflow: hidden;
+}
+
+.nl-scroll-track {
+	position: relative;
+	display: grid;
+	will-change: transform;
+}
+
+.nl-scroll-slide {
+	grid-area: 1 / 1;
+	min-width: 0;
+	will-change: transform;
+}
+
+.nl-scroll-left .nl-scroll-slide-next { transform: translateX(100%); }
+.nl-scroll-right .nl-scroll-slide-next { transform: translateX(-100%); }
+.nl-scroll-up .nl-scroll-slide-next { transform: translateY(100%); }
+.nl-scroll-down .nl-scroll-slide-next { transform: translateY(-100%); }
+
 .nl-carousel-rail {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(min(100%, 82px), 1fr));
@@ -448,6 +471,42 @@
 	width: 24px;
 	height: 3px;
 	border-radius: 2px;
+}
+
+.nl-indicators-rings .nl-indicator,
+.nl-indicators-squares .nl-indicator,
+.nl-indicators-diamonds .nl-indicator,
+.nl-indicators-triangles .nl-indicator,
+.nl-indicators-stars .nl-indicator,
+.nl-indicators-hearts .nl-indicator,
+.nl-indicators-hexagons .nl-indicator {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 16px;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	color: var(--nl-muted);
+	font-size: 0.72em;
+	line-height: 1;
+}
+
+.nl-indicators-rings .nl-indicator { font-size: 0.9em; }
+.nl-indicators-hearts .nl-indicator { font-size: 0.78em; }
+
+.nl-indicators-rings .nl-indicator.is-active,
+.nl-indicators-squares .nl-indicator.is-active,
+.nl-indicators-diamonds .nl-indicator.is-active,
+.nl-indicators-triangles .nl-indicator.is-active,
+.nl-indicators-stars .nl-indicator.is-active,
+.nl-indicators-hearts .nl-indicator.is-active,
+.nl-indicators-hexagons .nl-indicator.is-active {
+	background: transparent;
+	color: var(--nl-accent);
+	opacity: 1;
+	transform: scale(1.18);
 }
 
 .nl-indicators-numbers .nl-indicator {
@@ -610,6 +669,49 @@
 	pointer-events: none;
 }
 
+.nl-wall-layer {
+	position: absolute;
+	inset: 0;
+	z-index: 80;
+	overflow: visible;
+	pointer-events: none;
+}
+
+.nl-wall-source-hidden > :not(.nl-wall-layer) {
+	visibility: hidden;
+}
+
+.nl-wall-source-hidden::before,
+.nl-wall-source-hidden::after {
+	visibility: hidden;
+}
+
+.nl-wall-brick {
+	position: absolute;
+	overflow: hidden;
+	border: 1px solid color-mix(in srgb, var(--nl-accent) 42%, transparent);
+	background: var(--nl-background);
+	box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.28), 0 2px 5px rgba(0, 0, 0, 0.38);
+	animation-duration: var(--nl-animation-duration);
+	animation-delay: var(--wall-delay);
+	animation-timing-function: var(--nl-animation-easing);
+	animation-fill-mode: both;
+	will-change: transform, opacity;
+}
+
+.nl-wall-snapshot {
+	position: absolute;
+	top: 0;
+	left: 0;
+	margin: 0;
+	transform-origin: top left;
+	box-shadow: none;
+	pointer-events: none;
+}
+
+.nl-wall-layer-out .nl-wall-brick { animation-name: nl-wall-fall-out; }
+.nl-wall-layer-in .nl-wall-brick { animation-name: nl-wall-build-in; }
+
 .nl-animation-brick {
 	position: absolute;
 	top: var(--brick-y);
@@ -684,6 +786,17 @@
 @keyframes nl-lego-content-in { from { opacity: 0; filter: blur(4px); transform: translateY(25px) scale(0.96); } 70% { filter: saturate(1.3); } to { opacity: 1; filter: none; transform: none; } }
 @keyframes nl-brick-fall-out { from { opacity: 0.9; transform: translate(0, 0) rotate(0); } to { opacity: 0; transform: translate(var(--brick-tx), var(--brick-ty)) rotate(var(--brick-rotate)); } }
 @keyframes nl-brick-build-in { from { opacity: 0; transform: translate(var(--brick-tx), var(--brick-ty)) rotate(var(--brick-rotate)); } 55% { opacity: 1; } to { opacity: 0; transform: translate(0, 0) rotate(0); } }
+@keyframes nl-wall-fall-out {
+	0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
+	18% { opacity: 1; transform: translate3d(0, 4px, 0) rotate(0); }
+	100% { opacity: 0; transform: translate3d(0, var(--wall-fall), 0) rotate(var(--wall-turn)); }
+}
+@keyframes nl-wall-build-in {
+	0% { opacity: 0; transform: translate3d(0, calc(-1 * var(--wall-fall)), 0) rotate(var(--wall-turn)); }
+	36% { opacity: 1; }
+	82% { transform: translate3d(0, 3px, 0) rotate(0); }
+	100% { opacity: 1; transform: translate3d(0, 0, 0) rotate(0); }
+}
 
 @container (max-width: 430px) {
 	.nl-items-grid { grid-template-columns: minmax(0, 1fr); }

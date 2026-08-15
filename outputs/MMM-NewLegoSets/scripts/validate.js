@@ -31,15 +31,26 @@ function validateConfiguration() {
 		check(Boolean(themes.resolve(theme)), `Theme missing: ${theme}`);
 	});
 	configApi.ANIMATIONS.forEach((name) => check(configApi.normalize({ animation: { name } }).config.animation.name === name, `Animation rejected: ${name}`));
+	configApi.CYCLE_MODES.forEach((mode) => check(configApi.normalize({ cycle: { mode } }).config.cycle.mode === mode, `Cycle mode rejected: ${mode}`));
+	configApi.SCROLL_DIRECTIONS.forEach((scrollDirection) => check(configApi.normalize({ cycle: { scrollDirection } }).config.cycle.scrollDirection === scrollDirection, `Scroll direction rejected: ${scrollDirection}`));
+	configApi.INDICATOR_STYLES.forEach((indicatorStyle) => check(configApi.normalize({ cycle: { indicatorStyle } }).config.cycle.indicatorStyle === indicatorStyle, `Indicator style rejected: ${indicatorStyle}`));
 	for (let count = 1; count <= 10; count += 1) {
 		const normalized = configApi.normalize({ productCount: count, data: { poolSize: 1 } }).config;
 		check(normalized.productCount === count, `Product count rejected: ${count}`);
 		check(normalized.data.poolSize >= count, `Pool size does not cover product count ${count}`);
 	}
-	const bounded = configApi.normalize({ productCount: 99, data: { pollInterval: 1 }, cycle: { interval: 1 } }).config;
+	const bounded = configApi.normalize({
+		productCount: 99,
+		data: { pollInterval: 1 },
+		cycle: { interval: 1, scrollSpeed: 999 },
+		animation: { wallColumns: 99, wallRows: 1 },
+	}).config;
 	check(bounded.productCount === 10, "Product count upper bound failed");
 	check(bounded.data.pollInterval === 60000, "Poll interval lower bound failed");
 	check(bounded.cycle.interval === 2000, "Cycle interval lower bound failed");
+	check(bounded.cycle.scrollSpeed === 500, "Scroll speed upper bound failed");
+	check(bounded.animation.wallColumns === 12, "Wall column upper bound failed");
+	check(bounded.animation.wallRows === 2, "Wall row lower bound failed");
 }
 
 async function validateLiveData() {
@@ -63,7 +74,7 @@ async function validateLiveData() {
 		console.error(failures.map((failure) => `FAIL: ${failure}`).join("\n"));
 		process.exit(1);
 	}
-	console.log(`PASS: ${configApi.LAYOUTS.length} layouts, ${configApi.THEMES.length} themes, ${configApi.ANIMATIONS.length} animations, product counts 1-10`);
+	console.log(`PASS: ${configApi.LAYOUTS.length} layouts, ${configApi.THEMES.length} themes, ${configApi.ANIMATIONS.length} animations, ${configApi.INDICATOR_STYLES.length} indicators, product counts 1-10`);
 })().catch((error) => {
 	console.error(`FAIL: ${error.stack || error.message}`);
 	process.exit(1);

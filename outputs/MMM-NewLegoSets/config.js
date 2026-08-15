@@ -13,10 +13,13 @@
 	const ANIMATIONS = [
 		"none", "fade", "crossfade", "slideLeft", "slideRight", "slideUp", "slideDown",
 		"zoomIn", "zoomOut", "flipX", "flipY", "rotate", "roll", "bounce", "swing",
-		"blur", "wipe", "shutter", "elastic", "legoBuild", "legoBreakBuild", "random",
+		"blur", "wipe", "shutter", "elastic", "legoBuild", "legoBreakBuild", "brickWallRebuild", "random",
 	];
 	const TEXT_EFFECTS = ["none", "shadow", "outline", "glow", "neon", "gradient", "letterpress"];
 	const SORT_OPTIONS = ["source", "releaseDate", "announcedDate", "price", "pieceCount", "setNumber", "name"];
+	const CYCLE_MODES = ["transition", "scroll"];
+	const SCROLL_DIRECTIONS = ["left", "right", "up", "down"];
+	const INDICATOR_STYLES = ["dots", "rings", "squares", "diamonds", "triangles", "stars", "hearts", "hexagons", "bars", "numbers", "none"];
 
 	function textField(show, order, label, fontSize, fontWeight, effect) {
 		return {
@@ -81,7 +84,10 @@
 		},
 		cycle: {
 			enabled: true,
+			mode: "transition",
 			interval: 12000,
+			scrollSpeed: 60,
+			scrollDirection: "left",
 			step: 1,
 			loop: true,
 			shuffle: false,
@@ -97,6 +103,8 @@
 			stagger: 18,
 			particleCount: 36,
 			brickSize: 10,
+			wallColumns: 6,
+			wallRows: 5,
 			respectReducedMotion: true,
 			randomPool: ["fade", "slideLeft", "zoomIn", "flipY", "wipe", "legoBuild"],
 		},
@@ -253,13 +261,18 @@
 		config.data.sortDirection = enumValue(config.data.sortDirection, ["asc", "desc"], DEFAULTS.data.sortDirection, warnings, "data.sortDirection");
 
 		config.cycle.interval = clamp(config.cycle.interval, DEFAULTS.cycle.interval, 2000, 24 * 60 * 60 * 1000);
+		config.cycle.mode = enumValue(config.cycle.mode, CYCLE_MODES, DEFAULTS.cycle.mode, warnings, "cycle.mode");
+		config.cycle.scrollSpeed = clamp(config.cycle.scrollSpeed, DEFAULTS.cycle.scrollSpeed, 10, 500);
+		config.cycle.scrollDirection = enumValue(config.cycle.scrollDirection, SCROLL_DIRECTIONS, DEFAULTS.cycle.scrollDirection, warnings, "cycle.scrollDirection");
 		config.cycle.step = Math.round(clamp(config.cycle.step, DEFAULTS.cycle.step, 1, 10));
-		config.cycle.indicatorStyle = enumValue(config.cycle.indicatorStyle, ["dots", "bars", "numbers", "none"], DEFAULTS.cycle.indicatorStyle, warnings, "cycle.indicatorStyle");
+		config.cycle.indicatorStyle = enumValue(config.cycle.indicatorStyle, INDICATOR_STYLES, DEFAULTS.cycle.indicatorStyle, warnings, "cycle.indicatorStyle");
 		config.animation.name = enumValue(config.animation.name, ANIMATIONS, DEFAULTS.animation.name, warnings, "animation.name");
 		config.animation.duration = clamp(config.animation.duration, DEFAULTS.animation.duration, 0, 10000);
 		config.animation.stagger = clamp(config.animation.stagger, DEFAULTS.animation.stagger, 0, 250);
 		config.animation.particleCount = Math.round(clamp(config.animation.particleCount, DEFAULTS.animation.particleCount, 6, 120));
 		config.animation.brickSize = clamp(config.animation.brickSize, DEFAULTS.animation.brickSize, 4, 32);
+		config.animation.wallColumns = Math.round(clamp(config.animation.wallColumns, DEFAULTS.animation.wallColumns, 2, 12));
+		config.animation.wallRows = Math.round(clamp(config.animation.wallRows, DEFAULTS.animation.wallRows, 2, 12));
 		config.animation.randomPool = (Array.isArray(config.animation.randomPool) ? config.animation.randomPool : DEFAULTS.animation.randomPool)
 			.filter((name) => ANIMATIONS.includes(name) && name !== "random" && name !== "none");
 		if (!config.animation.randomPool.length) config.animation.randomPool = DEFAULTS.animation.randomPool.slice();
@@ -304,9 +317,12 @@
 
 	return {
 		ANIMATIONS,
+		CYCLE_MODES,
 		DEFAULTS,
+		INDICATOR_STYLES,
 		LAYOUTS,
 		SORT_OPTIONS,
+		SCROLL_DIRECTIONS,
 		TEXT_EFFECTS,
 		THEMES,
 		deepMerge,

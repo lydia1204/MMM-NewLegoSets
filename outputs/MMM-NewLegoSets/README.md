@@ -2,7 +2,7 @@
 
 A deeply configurable MagicMirror module for newly listed LEGO sets. It displays current LEGO.com product images, prices, piece counts, availability, and optional release and announcement dates.
 
-Version 2 is a complete overhaul: 10 display arrangements, 11 themes, 22 transitions, independent polling and slideshow intervals, one-to-ten visible products, per-field styling, persistent cache fallback, responsive sizing, and optional Brickset date enrichment.
+Version 2 is a complete overhaul: 10 display arrangements, 11 themes, 23 transitions, timed or continuous cycling, independent polling and slideshow controls, one-to-ten visible products, per-field styling, persistent cache fallback, responsive sizing, and optional Brickset date enrichment.
 
 ## Contents
 
@@ -28,11 +28,13 @@ Version 2 is a complete overhaul: 10 display arrangements, 11 themes, 22 transit
 - Shows **1 to 10 products** simultaneously.
 - Single-product mode cycles through the complete product pool.
 - Polling LEGO.com and changing slides use separate intervals.
+- Hero, carousel, and filmstrip can continuously auto-scroll at a configurable pixel speed and direction.
 - Parses both the current LEGO.com `ProductListingPage` structure and the previous Apollo listing structure.
 - Uses a last-known-good cache and clearly labels cached data.
 - Includes auto, hero, list, grid, compact, split, carousel, filmstrip, masonry, and table arrangements.
 - Includes mirror, LEGO, tuxedo, Pride, Progress Pride, trans, bisexual, lesbian, nonbinary, pansexual, and custom themes.
-- Includes fade, slide, zoom, flip, rotate, roll, bounce, swing, blur, wipe, shutter, elastic, and LEGO build/break transitions.
+- Includes fade, slide, zoom, flip, rotate, roll, bounce, swing, blur, wipe, shutter, elastic, LEGO particle, and full clipped brick-wall transitions.
+- Indicators support dots, rings, squares, diamonds, triangles, stars, hearts, hexagons, bars, and numbers.
 - Every image and text field can be shown, hidden, reordered, relabeled, recolored, resized, and restyled.
 - Supports custom WOFF2 fonts and seven text effects.
 - Honors `prefers-reduced-motion` by default.
@@ -99,9 +101,10 @@ All time values are in **milliseconds**.
 | Clock | Setting | Default | Purpose |
 | --- | --- | ---: | --- |
 | Data polling | `data.pollInterval` | 6 hours | Downloads a fresh product list. |
-| Slide cycling | `cycle.interval` | 12 seconds | Changes which cached set or group is visible. |
+| Timed slide cycling | `cycle.interval` | 12 seconds | Changes which cached set or group is visible in `transition` mode. |
+| Continuous scrolling | `cycle.scrollSpeed` | 60 px/s | Moves hero, carousel, or filmstrip continuously in `scroll` mode. |
 
-With `productCount: 1` and `data.poolSize: 10`, ten sets are held in memory and one is shown. The slide advances on `cycle.interval` without downloading again. LEGO.com is contacted only on `data.pollInterval` or a retry.
+With `productCount: 1` and `data.poolSize: 10`, ten sets are held in memory and one is shown. In `transition` mode the slide advances on `cycle.interval`. In `scroll` mode the next rendered group moves in immediately at `cycle.scrollSpeed`; `cycle.interval` and `animation.name` are not used. Neither mode downloads during a cycle. LEGO.com is contacted only on `data.pollInterval` or a retry.
 
 ## Layouts
 
@@ -166,10 +169,10 @@ none, fade, crossfade,
 slideLeft, slideRight, slideUp, slideDown,
 zoomIn, zoomOut, flipX, flipY,
 rotate, roll, bounce, swing, blur, wipe, shutter, elastic,
-legoBuild, legoBreakBuild, random
+legoBuild, legoBreakBuild, brickWallRebuild, random
 ```
 
-`legoBreakBuild` breaks the outgoing module into brick particles that fall away, then rebuilds the incoming module. `random` selects from `animation.randomPool` each cycle.
+`legoBreakBuild` adds independent LEGO-like particles while the content changes. `brickWallRebuild` is the literal full-module effect: it clips the rendered header, image, text, indicators, footer, and decorations into a configurable wall; the wall falls below the module boundary; the incoming module descends from above as the same clipped wall; then the slices are removed to reveal one solid module. `random` selects from `animation.randomPool` each cycle.
 
 ```js
 animation: {
@@ -179,6 +182,8 @@ animation: {
   stagger: 14,
   particleCount: 48,
   brickSize: 9,
+  wallColumns: 6,
+  wallRows: 5,
   respectReducedMotion: true,
   randomPool: ["fade", "slideLeft", "flipY", "wipe", "legoBreakBuild"]
 }
@@ -227,14 +232,19 @@ animation: {
 | Setting | Default | Purpose |
 | --- | --- | --- |
 | `enabled` | `true` | Enables slide changes. |
-| `interval` | `12000` | Time between changes; minimum 2 seconds. |
+| `mode` | `"transition"` | `transition` for interval-based effects or `scroll` for continuous motion. |
+| `interval` | `12000` | Time between changes in `transition` mode; minimum 2 seconds. |
+| `scrollSpeed` | `60` | Continuous speed in CSS pixels per second, clamped 10-500. |
+| `scrollDirection` | `"left"` | `left`, `right`, `up`, or `down`. |
 | `step` | `1` | Positions advanced per cycle, 1-10. |
 | `loop` | `true` | Wraps the final set to the first. |
 | `shuffle` | `false` | Shuffles each freshly fetched pool. |
 | `pauseWhenHidden` | `true` | Compatibility flag; MagicMirror suspend/resume always pauses timers. |
 | `pauseOnHover` | `false` | Pauses while a pointer is over the module. |
 | `showIndicators` | `true` | Shows position indicators. |
-| `indicatorStyle` | `"dots"` | `dots`, `bars`, `numbers`, or `none`. |
+| `indicatorStyle` | `"dots"` | `dots`, `rings`, `squares`, `diamonds`, `triangles`, `stars`, `hearts`, `hexagons`, `bars`, `numbers`, or `none`. |
+
+Continuous scrolling is supported by `hero`, `carousel`, and `filmstrip`. Other layouts deliberately fall back to timed transitions so dense tables, masonry columns, and grids are not pushed through an unsuitable viewport. With reduced motion enabled at OS level and `respectReducedMotion: true`, scrolling also falls back to the timed, motion-free cycle.
 
 ### `animation`
 
@@ -246,6 +256,8 @@ animation: {
 | `stagger` | `18` | Brick delay, 0-250 ms. |
 | `particleCount` | `36` | LEGO brick count, 6-120. |
 | `brickSize` | `10` | Base brick size, 4-32 px. |
+| `wallColumns` | `6` | Horizontal slices in `brickWallRebuild`, clamped 2-12. |
+| `wallRows` | `5` | Vertical slices in `brickWallRebuild`, clamped 2-12. |
 | `respectReducedMotion` | `true` | Disables motion when the OS requests it. |
 | `randomPool` | six effects | Candidates for `random`. |
 
@@ -377,6 +389,39 @@ Allowed override keys: `name`, `url`, `image`, `price`, `priceCents`, `currencyC
 
 ## Examples
 
+### Continuous filmstrip with star indicators
+
+```js
+config: {
+  layout: "filmstrip",
+  productCount: 5,
+  data: { poolSize: 20 },
+  cycle: {
+    mode: "scroll",
+    scrollSpeed: 70,
+    scrollDirection: "left",
+    indicatorStyle: "stars"
+  }
+}
+```
+
+### Full brick-wall fall and rebuild
+
+```js
+config: {
+  layout: "hero",
+  productCount: 1,
+  cycle: { mode: "transition", interval: 15000 },
+  animation: {
+    name: "brickWallRebuild",
+    duration: 1000,
+    stagger: 18,
+    wallColumns: 6,
+    wallRows: 5
+  }
+}
+```
+
 ### Ten-product Progress Pride grid
 
 ```js
@@ -418,6 +463,8 @@ config: {
 - Keep `respectReducedMotion: true` unless the display's needs are known.
 - Raspberry Pi-class mirrors may prefer `fade`, duration under 800 ms, and 12-24 brick particles.
 - High particle counts, blur, and large shadows increase GPU work.
+- `brickWallRebuild` clones the rendered module once per wall cell. Use a 4x3 or 5x4 wall on lower-powered Raspberry Pi hardware; 6x5 is the visual default.
+- Auto-scroll uses compositor-friendly transforms. Lower `scrollSpeed` means longer continuous motion, not lower rendering cost per frame.
 - Polling every few hours is sufficient for releases and friendlier to LEGO.com. The minimum is one minute.
 - Use `poolSize` for slideshow depth; increase `pageCount` only when needed to fill it.
 - Images after the first two use lazy loading.
@@ -469,7 +516,7 @@ Also validate today's LEGO.com payload:
 npm run validate:live
 ```
 
-The v2 release was browser-validated across all 10 layouts at desktop and 420 px widths, all 11 themes, product counts 1-10, all 22 animation choices, the 36-particle LEGO build, actual single-product advancement, missing fields, and both current/legacy LEGO payloads.
+The v2 release was browser-validated across all 10 layouts at desktop and 420 px widths, all 11 themes, product counts 1-10, all 23 animation choices, actual single-product advancement, missing fields, and both current/legacy LEGO payloads. Continuous hero/carousel/filmstrip motion was measured in all four directions, including an exact 449 px at 240 px/s timing check. The clipped 6x5 brick wall was inspected during fall, rebuild, and final solid phases. Every indicator variant was checked for its glyph, active state, count, and overflow behavior.
 
 ## Troubleshooting
 
@@ -491,7 +538,7 @@ Increase `productCount` to show several at once. For a one-set slideshow, use `p
 
 ### Too many dots
 
-Each dot represents a valid cycle start. Increase `cycle.step`, use bars, or hide indicators.
+Each symbol represents a valid cycle start. Increase `cycle.step`, choose a more compact shape such as dots or bars, or hide indicators.
 
 ### Motion is disabled
 

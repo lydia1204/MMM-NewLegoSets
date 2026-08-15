@@ -86,11 +86,14 @@
 					<label>Layout<select id="layout-control"></select></label>
 					<label>Theme<select id="theme-control"></select></label>
 					<label>Animation<select id="animation-control"></select></label>
-					<label>Indicator<select id="indicator-control"><option>dots</option><option>bars</option><option>numbers</option><option>none</option></select></label>
+					<label>Indicator<select id="indicator-control" aria-label="Indicator shape"><option value="dots">●</option><option value="rings">○</option><option value="squares">■</option><option value="diamonds">◆</option><option value="triangles">▲</option><option value="stars">★</option><option value="hearts">♥</option><option value="hexagons">⬢</option><option value="bars">▬</option><option value="numbers">1 2 3</option><option value="none">—</option></select></label>
+					<label>Cycle mode<select id="cycle-mode-control"><option value="transition">Timed transition</option><option value="scroll">Auto scroll</option></select></label>
+					<label>Scroll direction<select id="scroll-direction-control" aria-label="Scroll direction"><option value="left">←</option><option value="right">→</option><option value="up">↑</option><option value="down">↓</option></select></label>
 				</div>
 				<div class="range-control"><label for="count-control">Visible products <output id="count-output">1</output></label><input id="count-control" type="range" min="1" max="10" step="1" value="1"></div>
 				<div class="range-control"><label for="columns-control">Columns <output id="columns-output">2</output></label><input id="columns-control" type="range" min="1" max="10" step="1" value="2"></div>
 				<div class="range-control"><label for="cycle-control">Slide interval <output id="cycle-output">12s</output></label><input id="cycle-control" type="range" min="2" max="60" step="1" value="12"></div>
+				<div class="range-control"><label for="scroll-speed-control">Scroll speed <output id="scroll-speed-output">60px/s</output></label><input id="scroll-speed-control" type="range" min="10" max="300" step="5" value="60"></div>
 				<div class="range-control"><label for="duration-control">Animation duration <output id="duration-output">1100ms</output></label><input id="duration-control" type="range" min="0" max="3000" step="50" value="1100"></div>
 				<div class="range-control"><label for="width-control">Module max width <output id="width-output">760px</output></label><input id="width-control" type="range" min="160" max="1400" step="10" value="760"></div>
 				<div class="range-control"><label for="font-size-control">Base font size <output id="font-size-output">16px</output></label><input id="font-size-control" type="range" min="8" max="36" step="1" value="16"></div>
