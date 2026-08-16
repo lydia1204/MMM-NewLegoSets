@@ -71,6 +71,13 @@ async function serveSets(response, url) {
 		pageCount: Math.round(boundedNumber(url.searchParams.get("pageCount"), 2, 1, 8)),
 		includeComingSoon: url.searchParams.get("includeComingSoon") === "true",
 		includePreorders: url.searchParams.get("includePreorders") === "true",
+		recentOnly: url.searchParams.get("recentOnly") !== "false",
+		recentDays: Math.round(boundedNumber(url.searchParams.get("recentDays"), 31, 1, 365)),
+		unknownDatePolicy: String(url.searchParams.get("unknownDatePolicy") || "firstSeen"),
+		newsroomAnnouncements: url.searchParams.get("newsroomAnnouncements") !== "false",
+		newsroomPageLimit: Math.round(boundedNumber(url.searchParams.get("newsroomPageLimit"), 30, 1, 100)),
+		sortBy: String(url.searchParams.get("sortBy") || "recent"),
+		sortDirection: String(url.searchParams.get("sortDirection") || "desc"),
 		requestTimeout: 30000,
 	};
 	const key = JSON.stringify(config);

@@ -122,7 +122,7 @@
 }
 
 .nl-items-grid {
-	grid-template-columns: repeat(var(--nl-columns), minmax(var(--nl-card-min-width), 1fr));
+	grid-template-columns: repeat(var(--nl-columns), minmax(0, 1fr));
 }
 
 .nl-items-list,
@@ -689,7 +689,7 @@
 .nl-wall-brick {
 	position: absolute;
 	overflow: hidden;
-	border: 1px solid color-mix(in srgb, var(--nl-accent) 42%, transparent);
+	border: 1px solid color-mix(in srgb, var(--wall-color, var(--nl-accent)) 62%, transparent);
 	background: var(--nl-background);
 	box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.28), 0 2px 5px rgba(0, 0, 0, 0.38);
 	animation-duration: var(--nl-animation-duration);

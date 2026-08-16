@@ -26,7 +26,7 @@ npm start
 
 Then open [http://127.0.0.1:4174](http://127.0.0.1:4174).
 
-The test mirror provides live and sample data, responsive device presets, MagicMirror-style regions, visual controls, a complete JSON editor, persistent browser settings, manual and automatic cycling, and layout diagnostics.
+The test mirror provides live and sample data, responsive device presets, MagicMirror-style regions, visual controls, a complete JSON editor, persistent browser settings, manual and automatic cycling, duplicate detection, and a full pairwise/rendered compatibility audit.
 
 ## Documentation
 

@@ -137,13 +137,18 @@ Module.register("MMM-NewLegoSets", {
 		this.applyRootStyles(wrapper, theme);
 
 		if (this.pendingEnterAnimation && this.pendingEnterAnimation !== "brickWallRebuild") {
-			wrapper.classList.add(`nl-cycle-in-${this.animationClass(this.pendingEnterAnimation)}`);
+			const animationClass = `nl-cycle-in-${this.animationClass(this.pendingEnterAnimation)}`;
+			wrapper.classList.add(animationClass);
 			wrapper.style.setProperty("--nl-animation-duration", `${this.config.animation.duration}ms`);
 			wrapper.style.setProperty("--nl-animation-easing", this.config.animation.easing);
 			if (["legoBuild", "legoBreakBuild"].includes(this.pendingEnterAnimation)) {
 				wrapper.appendChild(this.buildBrickLayer("in"));
 			}
-			setTimeout(() => { this.pendingEnterAnimation = null; }, this.config.animation.duration + 80);
+			setTimeout(() => {
+				wrapper.querySelectorAll(":scope > .nl-brick-layer").forEach((layer) => layer.remove());
+				wrapper.classList.remove(animationClass);
+				this.pendingEnterAnimation = null;
+			}, this.config.animation.duration + 80);
 		}
 
 		if (this.config.cycle.pauseOnHover) {
@@ -180,8 +185,9 @@ Module.register("MMM-NewLegoSets", {
 		const variables = MMMNewLegoThemes.cssVariables(theme);
 		Object.keys(variables).forEach((key) => wrapper.style.setProperty(key, variables[key]));
 		const settings = this.config.layoutSettings;
+		const preferredColumns = Math.max(1, Math.floor((settings.moduleMaxWidth + settings.gap) / (settings.cardMinWidth + settings.gap)));
 		wrapper.style.setProperty("--nl-gap", `${settings.gap}px`);
-		wrapper.style.setProperty("--nl-columns", String(settings.columns));
+		wrapper.style.setProperty("--nl-columns", String(Math.min(settings.columns, preferredColumns)));
 		wrapper.style.setProperty("--nl-card-min-width", `${settings.cardMinWidth}px`);
 		wrapper.style.setProperty("--nl-padding", `${settings.padding}px`);
 		wrapper.style.setProperty("--nl-card-padding", `${settings.cardPadding}px`);
@@ -225,16 +231,33 @@ Module.register("MMM-NewLegoSets", {
 	getDisplaySetsAt: function (startIndex) {
 		const count = Math.min(this.config.productCount, this.sets.length);
 		const visible = [];
-		for (let offset = 0; offset < count; offset += 1) {
+		const identities = new Set();
+		for (let offset = 0; offset < this.sets.length && visible.length < count; offset += 1) {
 			const index = startIndex + offset;
 			if (!this.config.cycle.loop && index >= this.sets.length) break;
-			visible.push(this.sets[index % this.sets.length]);
+			const set = this.sets[index % this.sets.length];
+			const identity = this.setIdentity(set);
+			if (!identities.has(identity)) {
+				identities.add(identity);
+				visible.push(set);
+			}
 		}
 		return visible;
 	},
 
+	setIdentity: function (set) {
+		if (set && set.setNumber) return `set:${String(set.setNumber).replace(/-1$/, "")}`;
+		if (set && set.sku) return `sku:${set.sku}`;
+		if (set && set.url) return `url:${String(set.url).split(/[?#]/)[0].toLowerCase()}`;
+		return `name:${String(set && set.name || "unknown").trim().toLowerCase()}`;
+	},
+
+	cycleStep: function () {
+		return this.config.cycle.step === "page" ? this.config.productCount : this.config.cycle.step;
+	},
+
 	nextCycleIndex: function () {
-		const next = this.currentIndex + this.config.cycle.step;
+		const next = this.currentIndex + this.cycleStep();
 		if (next < this.sets.length) return next;
 		return this.config.cycle.loop ? next % this.sets.length : Math.max(this.sets.length - this.config.productCount, 0);
 	},
@@ -293,8 +316,9 @@ Module.register("MMM-NewLegoSets", {
 		const table = document.createElement("div");
 		table.className = "nl-table";
 		sets.forEach((set, index) => {
-			const row = document.createElement("div");
+		const row = document.createElement("div");
 			row.className = "nl-table-row";
+			if (set.setNumber) row.dataset.setNumber = String(set.setNumber).replace(/-1$/, "");
 			if (this.config.fields.image.show) row.appendChild(this.buildImage(set, index, "table"));
 			["name", "price", "pieceCount", "setNumber", "releaseDate", "announcedDate", "availability", "ageRange", "pricePerPiece"]
 				.filter((key) => this.config.fields[key].show)
@@ -310,6 +334,7 @@ Module.register("MMM-NewLegoSets", {
 	buildCard: function (set, index, variant) {
 		const card = document.createElement("article");
 		card.className = `nl-card nl-card-${variant}`;
+		if (set.setNumber) card.dataset.setNumber = String(set.setNumber).replace(/-1$/, "");
 		card.style.setProperty("--nl-card-index", String(index));
 		if (this.config.fields.image.show) card.appendChild(this.buildImage(set, index, variant));
 		const details = document.createElement("div");
@@ -446,7 +471,7 @@ Module.register("MMM-NewLegoSets", {
 	},
 
 	buildIndicators: function () {
-		const step = this.config.cycle.step;
+		const step = this.cycleStep();
 		const maxStart = Math.max(this.sets.length - this.config.productCount, 0);
 		const pages = this.config.cycle.loop
 			? Math.max(Math.ceil(this.sets.length / step), 1)
@@ -567,7 +592,7 @@ Module.register("MMM-NewLegoSets", {
 		const layer = document.createElement("div");
 		layer.className = `nl-brick-layer nl-brick-layer-${direction}`;
 		layer.setAttribute("aria-hidden", "true");
-		const colors = ["var(--nl-accent)", "var(--nl-accent-2)", "#0057b8", "#ffffff"];
+		const colors = this.activeBrickColors();
 		for (let index = 0; index < this.config.animation.particleCount; index += 1) {
 			const brick = document.createElement("i");
 			brick.className = "nl-animation-brick";
@@ -588,6 +613,14 @@ Module.register("MMM-NewLegoSets", {
 		return layer;
 	},
 
+	activeBrickColors: function () {
+		if (this.config.animation.brickColors.length) return this.config.animation.brickColors;
+		const theme = MMMNewLegoThemes.resolve(this.config.theme, this.config.customTheme);
+		return Array.isArray(theme.brickColors) && theme.brickColors.length
+			? theme.brickColors
+			: ["var(--nl-accent)", "var(--nl-accent-2)", "#ffffff"];
+	},
+
 	buildBrickWallLayer: function (root, direction) {
 		const layer = document.createElement("div");
 		layer.className = `nl-wall-layer nl-wall-layer-${direction}`;
@@ -596,6 +629,7 @@ Module.register("MMM-NewLegoSets", {
 		const rows = this.config.animation.wallRows;
 		const width = root.offsetWidth;
 		const height = root.offsetHeight;
+		const colors = this.activeBrickColors();
 		for (let row = 0; row < rows; row += 1) {
 			for (let column = 0; column < columns; column += 1) {
 				const left = (column / columns) * width;
@@ -611,6 +645,7 @@ Module.register("MMM-NewLegoSets", {
 				brick.style.setProperty("--wall-delay", `${(row * columns + column) * this.config.animation.stagger}ms`);
 				brick.style.setProperty("--wall-fall", `${height + 100 + row * 20}px`);
 				brick.style.setProperty("--wall-turn", `${((column + row) % 2 ? 1 : -1) * (3 + (column % 4) * 2)}deg`);
+				brick.style.setProperty("--wall-color", colors[(row * columns + column) % colors.length]);
 				const snapshot = root.cloneNode(true);
 				snapshot.removeAttribute("id");
 				snapshot.querySelectorAll("[id], .nl-wall-layer, .nl-brick-layer").forEach((node) => {

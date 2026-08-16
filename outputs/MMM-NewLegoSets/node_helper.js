@@ -5,7 +5,7 @@ const fs = require("fs");
 const path = require("path");
 const NodeHelper = require("node_helper");
 const Config = require("./config");
-const { fetchRecentSets } = require("./lego-store");
+const { fetchRecentSets, finalizeRecentSets } = require("./lego-store");
 
 const MODULE_NAME = "MMM-NewLegoSets";
 const NOTIFICATIONS = {
@@ -58,10 +58,19 @@ module.exports = NodeHelper.create({
 			locale: data.locale,
 			countryCode: data.countryCode,
 			sourceUrl: data.sourceUrl,
+			pageCount: data.pageCount,
+			poolSize: data.poolSize,
 			includeComingSoon: data.includeComingSoon,
 			includePreorders: data.includePreorders,
+			recentOnly: data.recentOnly,
+			recentDays: data.recentDays,
+			unknownDatePolicy: data.unknownDatePolicy,
+			newsroomAnnouncements: data.newsroomAnnouncements,
+			newsroomPageLimit: data.newsroomPageLimit,
 			sortBy: data.sortBy,
 			sortDirection: data.sortDirection,
+			bricksetEnabled: Boolean(data.bricksetApiKey),
+			metadataOverrides: data.metadataOverrides,
 		});
 		return crypto.createHash("sha256").update(identity).digest("hex").slice(0, 20);
 	},
@@ -97,8 +106,15 @@ module.exports = NodeHelper.create({
 		const key = this.cacheKey(config);
 
 		try {
-			const result = await fetchRecentSets(config);
+			const result = await fetchRecentSets(config, { deferFinalize: true });
 			result.sets = this.attachDiscoveryDates(result.sets, result.fetchedAt);
+			result.sets = finalizeRecentSets(result.sets, config, new Date(result.fetchedAt).getTime()).slice(0, config.data.poolSize);
+			const exactDateCount = result.sets.filter((set) => set.announcedDate || set.releaseDate).length;
+			result.recencySummary = {
+				recentDays: config.data.recentDays,
+				exactDateCount,
+				firstSeenFallbackCount: result.sets.length - exactDateCount,
+			};
 			result.configWarnings = normalized.warnings;
 			result.stale = false;
 			if (config.data.cacheEnabled) this.cacheResult(key, result);

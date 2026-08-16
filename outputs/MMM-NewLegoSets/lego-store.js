@@ -9,13 +9,18 @@ const DEFAULTS = {
 	sourceUrl: "https://www.lego.com/{locale}/categories/new-sets-and-products",
 	pageCount: 2,
 	poolSize: 10,
-	includeComingSoon: false,
-	includePreorders: false,
+	includeComingSoon: true,
+	includePreorders: true,
+	recentOnly: true,
+	recentDays: 31,
+	unknownDatePolicy: "firstSeen",
+	newsroomAnnouncements: true,
+	newsroomPageLimit: 30,
 	requestTimeout: 20000,
-	userAgent: "MMM-NewLegoSets/2.0 MagicMirror",
+	userAgent: "MMM-NewLegoSets/2.1 MagicMirror",
 	bricksetApiKey: "",
 	metadataOverrides: {},
-	sortBy: "source",
+	sortBy: "recent",
 	sortDirection: "desc",
 };
 
@@ -291,6 +296,65 @@ function applyBricksetMetadata(set, record, config) {
 	};
 }
 
+function newsroomSitemapUrl(config) {
+	return `https://www.lego.com/${normalizeLocale(config.locale)}/aboutus/sitemap.xml`;
+}
+
+function parseNewsroomEntries(xml) {
+	return Array.from(String(xml).matchAll(/<url>\s*<loc>([^<]+)<\/loc>\s*<lastmod>([^<]+)<\/lastmod>/gi))
+		.map((match) => ({ url: decodeJsonScript(match[1]), modifiedDate: isoDate(match[2]) }))
+		.filter((entry) => entry.url.includes("/aboutus/news/") && entry.modifiedDate);
+}
+
+function publishedDateFromArticle(html) {
+	const match = String(html).match(/property=["']article:published_time["']\s+content=["']([^"']+)["']/i)
+		|| String(html).match(/["']datePublished["']\s*:\s*["']([^"']+)["']/i);
+	return match ? isoDate(match[1]) : null;
+}
+
+async function fetchNewsroomAnnouncements(sets, config) {
+	if (!config.newsroomAnnouncements || !sets.length) return { records: new Map(), warning: null };
+	try {
+		const sitemap = await requestText(newsroomSitemapUrl(config), {
+			timeout: config.requestTimeout,
+			headers: legoHeaders(config),
+		});
+		const cutoff = Date.now() - (clampInteger(config.recentDays, DEFAULTS.recentDays, 1, 365) + 7) * 24 * 60 * 60 * 1000;
+		const entries = parseNewsroomEntries(sitemap)
+			.filter((entry) => new Date(entry.modifiedDate).getTime() >= cutoff)
+			.slice(0, clampInteger(config.newsroomPageLimit, DEFAULTS.newsroomPageLimit, 1, 100));
+		const pages = await Promise.all(entries.map(async (entry) => {
+			try {
+				const html = await requestText(entry.url, { timeout: config.requestTimeout, headers: legoHeaders(config) });
+				return { ...entry, html, publishedDate: publishedDateFromArticle(html) };
+			} catch (error) {
+				return null;
+			}
+		}));
+		const records = new Map();
+		for (const set of sets) {
+			const number = String(set.setNumber || "").replace(/-1$/, "");
+			if (!number) continue;
+			const match = pages.filter(Boolean).find((page) => page.publishedDate && new RegExp(`(?:^|\\D)${number}(?:\\D|$)`).test(page.html));
+			if (match) records.set(number, { announcedDate: match.publishedDate, announcementUrl: match.url });
+		}
+		return { records, warning: null };
+	} catch (error) {
+		return { records: new Map(), warning: `LEGO Newsroom enrichment failed: ${error.message}` };
+	}
+}
+
+function applyNewsroomMetadata(set, record) {
+	if (!record || !record.announcedDate) return set;
+	return {
+		...set,
+		announcedDate: record.announcedDate,
+		announcementUrl: record.announcementUrl,
+		announcementSource: "LEGO Newsroom",
+		dateSource: set.releaseDate ? set.dateSource : "LEGO Newsroom",
+	};
+}
+
 function applyOverrides(set, overrides) {
 	const override = overrides && (overrides[set.setNumber] || overrides[`${set.setNumber}-1`]);
 	if (!override || typeof override !== "object") return set;
@@ -303,8 +367,75 @@ function applyOverrides(set, overrides) {
 	return next;
 }
 
+function setIdentity(set) {
+	if (set && set.setNumber) return `set:${String(set.setNumber).replace(/-1$/, "")}`;
+	if (set && set.sku) return `sku:${set.sku}`;
+	if (set && set.url) return `url:${String(set.url).split(/[?#]/)[0].toLowerCase()}`;
+	return `name:${String(set && set.name || "unknown").trim().toLowerCase()}`;
+}
+
+function deduplicateSets(sets) {
+	const seen = new Set();
+	return sets.filter((set) => {
+		const key = setIdentity(set);
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+}
+
+function dateValue(value) {
+	const timestamp = value ? new Date(value).getTime() : NaN;
+	return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function filterRecentSets(sets, config, now = Date.now()) {
+	if (!config.recentOnly) return sets.slice();
+	const cutoff = now - clampInteger(config.recentDays, DEFAULTS.recentDays, 1, 365) * 24 * 60 * 60 * 1000;
+	return sets.filter((set) => {
+		const announced = dateValue(set.announcedDate);
+		if (announced !== null) return announced >= cutoff && announced <= now;
+		const released = dateValue(set.releaseDate);
+		if (released !== null && released <= now) return released >= cutoff;
+		const firstSeen = config.unknownDatePolicy === "firstSeen" ? dateValue(set.discoveredDate) : null;
+		if (firstSeen !== null) return firstSeen >= cutoff && firstSeen <= now;
+		return config.unknownDatePolicy === "include";
+	});
+}
+
+function compareRecent(a, b, now = Date.now()) {
+	const groups = ["announcedDate", "releaseDate", "discoveredDate"];
+	const hasSortableDate = (set, key) => {
+		const value = dateValue(set[key]);
+		return value !== null && (key !== "releaseDate" || value <= now);
+	};
+	const leftGroup = groups.findIndex((key) => hasSortableDate(a, key));
+	const rightGroup = groups.findIndex((key) => hasSortableDate(b, key));
+	const normalizedLeftGroup = leftGroup < 0 ? groups.length : leftGroup;
+	const normalizedRightGroup = rightGroup < 0 ? groups.length : rightGroup;
+	if (normalizedLeftGroup !== normalizedRightGroup) return normalizedLeftGroup - normalizedRightGroup;
+	const key = groups[normalizedLeftGroup];
+	if (key) {
+		const difference = dateValue(b[key]) - dateValue(a[key]);
+		if (difference) return difference;
+	}
+	return a.sourceIndex - b.sourceIndex;
+}
+
+function finalizeRecentSets(sets, config = {}, now = Date.now()) {
+	const merged = dataConfig(config);
+	const unique = deduplicateSets(sets);
+	const filtered = filterRecentSets(unique, merged, now);
+	if (merged.sortBy === "recent") {
+		const direction = merged.sortDirection === "asc" ? -1 : 1;
+		return filtered.slice().sort((a, b) => compareRecent(a, b, now) * direction);
+	}
+	return sortSets(filtered, merged);
+}
+
 function compareSets(a, b, key) {
 	if (key === "source") return a.sourceIndex - b.sourceIndex;
+	if (key === "recent") return compareRecent(a, b);
 	const left = key === "price" ? a.priceCents : a[key];
 	const right = key === "price" ? b.priceCents : b[key];
 	if (left === null || left === undefined || left === "") return 1;
@@ -316,13 +447,18 @@ function compareSets(a, b, key) {
 
 function sortSets(sets, config) {
 	if (config.sortBy === "source") return sets;
+	if (config.sortBy === "recent") {
+		const direction = config.sortDirection === "asc" ? -1 : 1;
+		return sets.slice().sort((a, b) => compareRecent(a, b) * direction);
+	}
 	const direction = config.sortDirection === "asc" ? 1 : -1;
 	return sets.slice().sort((a, b) => compareSets(a, b, config.sortBy) * direction);
 }
 
-async function fetchRecentSets(config = {}) {
+async function fetchRecentSets(config = {}, runtime = {}) {
 	const merged = dataConfig(config);
 	const poolSize = clampInteger(merged.poolSize || merged.maxItems, DEFAULTS.poolSize, 1, 50);
+	const scanLimit = merged.recentOnly ? 50 : poolSize;
 	const urls = buildPageUrls(merged);
 	const seen = new Set();
 	const warnings = [];
@@ -342,26 +478,34 @@ async function fetchRecentSets(config = {}) {
 					seen.add(key);
 					sets.push({ ...set, sourceIndex: sets.length });
 				}
-				if (sets.length >= poolSize) break;
+				if (sets.length >= scanLimit) break;
 			}
 		} catch (error) {
 			if (!sets.length) throw error;
 			warnings.push(`Partial LEGO result: ${error.message}`);
 		}
-		if (sets.length >= poolSize) break;
+		if (sets.length >= scanLimit) break;
 	}
 
 	const brickset = await fetchBricksetMetadata(sets, merged);
 	if (brickset.warning) warnings.push(brickset.warning);
 	sets = sets.map((set) => applyBricksetMetadata(set, brickset.records.get(String(set.setNumber)), merged));
+	const newsroom = await fetchNewsroomAnnouncements(sets, merged);
+	if (newsroom.warning) warnings.push(newsroom.warning);
+	sets = sets.map((set) => applyNewsroomMetadata(set, newsroom.records.get(String(set.setNumber).replace(/-1$/, ""))));
 	sets = sets.map((set) => applyOverrides(set, merged.metadataOverrides));
-	sets = sortSets(sets, merged).slice(0, poolSize);
+	sets = deduplicateSets(sets);
+	const fetchedAt = new Date(Date.now()).toISOString();
+	if (!runtime.deferFinalize) {
+		sets = sets.map((set) => ({ ...set, discoveredDate: set.discoveredDate || fetchedAt }));
+		sets = finalizeRecentSets(sets, merged).slice(0, poolSize);
+	}
 	return {
 		sets,
 		total: total === null ? sets.length : total,
 		source: "LEGO.com",
 		sourceUrl: urls[0],
-		fetchedAt: new Date(Date.now()).toISOString(),
+		fetchedAt,
 		warnings,
 		parserVersions: Array.from(parserVersions),
 		enrichedByBrickset: Boolean(merged.bricksetApiKey && brickset.records.size),
@@ -371,7 +515,13 @@ async function fetchRecentSets(config = {}) {
 module.exports = {
 	applyOverrides,
 	buildPageUrls,
+	deduplicateSets,
 	fetchRecentSets,
+	filterRecentSets,
+	finalizeRecentSets,
 	parseLegoPage,
+	parseNewsroomEntries,
+	publishedDateFromArticle,
+	setIdentity,
 	sortSets,
 };

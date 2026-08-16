@@ -32,8 +32,10 @@ PORT=4180 npm start
 - Module width, columns, font size, image transparency, image fitting, and field visibility.
 - Automatic cycling, pause/play, forced refresh, and manual next-set transitions.
 - The complete normalized configuration through the JSON editor.
+- Recent-window, unknown-date, official Newsroom, page-step, and theme/override brick-color controls.
+- A one-click compatibility audit spanning 5,584 pairwise normalized and 1,249 rendered states.
 
-The Diagnostics tab reports visible item count, loaded products, broken images, root overflow, nested carousel/filmstrip clipping, canvas bounds, data parser, current index, cycle mode/speed, and the next polling time. In auto-scroll mode it counts the current group only; the offscreen pre-rendered group is intentionally excluded.
+The Diagnostics tab reports visible item count, loaded and visible duplicate set numbers, broken images, root overflow, nested carousel/filmstrip clipping, canvas bounds, data parser, current index, cycle mode/speed, and the next polling time. In auto-scroll mode it counts the current group only; the offscreen pre-rendered group is intentionally excluded. **Run full compatibility audit** pauses the mirror, uses deterministic sample data, runs the complete matrix, and restores the user's data/configuration even when an audit exception occurs.
 
 ## JSON workflow
 
@@ -50,7 +52,7 @@ The downloaded file is plain JSON. Move the object into the `config` property of
 
 ## Data behavior
 
-The local server proxies LEGO.com through the production `lego-store.js` parser. Responses are cached in memory for 60 seconds unless **Refresh data** is selected. A failed refresh retains the existing product pool and reports the failure in the status bar.
+The local server proxies LEGO.com and official LEGO Newsroom pages through the production `lego-store.js` parser. Responses are cached in memory for 60 seconds unless **Refresh data** is selected. A failed refresh retains the existing product pool and reports the failure in the status bar. Canonical set numbers are deduplicated before display.
 
 No configuration or product data is uploaded by the test mirror.
 

@@ -1,8 +1,8 @@
-# MMM-NewLegoSets 2.0
+# MMM-NewLegoSets 2.1
 
 A deeply configurable MagicMirror module for newly listed LEGO sets. It displays current LEGO.com product images, prices, piece counts, availability, and optional release and announcement dates.
 
-Version 2 is a complete overhaul: 10 display arrangements, 11 themes, 23 transitions, timed or continuous cycling, independent polling and slideshow controls, one-to-ten visible products, per-field styling, persistent cache fallback, responsive sizing, and optional Brickset date enrichment.
+Version 2.1 adds page-sized multi-product cycling, a strict recent-product window, official LEGO Newsroom announcement enrichment, canonical set-number deduplication, theme-aware brick palettes and user color overrides, plus an exhaustive compatibility audit in the live editor.
 
 ## Contents
 
@@ -26,7 +26,9 @@ Version 2 is a complete overhaul: 10 display arrangements, 11 themes, 23 transit
 ## Highlights
 
 - Shows **1 to 10 products** simultaneously.
-- Single-product mode cycles through the complete product pool.
+- Single-product mode cycles through the complete product pool; multi-product mode replaces the complete visible page by default.
+- Defaults to products announced or released within 31 days and puts exact official announcements first.
+- Deduplicates canonical set numbers in the fetched pool and again in every visible page.
 - Polling LEGO.com and changing slides use separate intervals.
 - Hero, carousel, and filmstrip can continuously auto-scroll at a configurable pixel speed and direction.
 - Parses both the current LEGO.com `ProductListingPage` structure and the previous Apollo listing structure.
@@ -145,6 +147,7 @@ All arrangements use theme variables and container-responsive rules. `layoutSett
 
 ```js
 customTheme: {
+  brickColors: ["#ffd500", "#e3000b", "#0057b8", "#ffffff"],
   background: "rgba(4, 10, 18, 0.94)",
   surface: "rgba(255, 255, 255, 0.10)",
   text: "#ffffff",
@@ -182,12 +185,15 @@ animation: {
   stagger: 14,
   particleCount: 48,
   brickSize: 9,
+  brickColors: ["#5bcefa", "#f5a9b8", "#ffffff"],
   wallColumns: 6,
   wallRows: 5,
   respectReducedMotion: true,
   randomPool: ["fade", "slideLeft", "flipY", "wipe", "legoBreakBuild"]
 }
 ```
+
+Leave `animation.brickColors` empty to use the active theme's palette. A non-empty array of up to 16 hex colors overrides the theme for `legoBuild`, `legoBreakBuild`, and every slice of `brickWallRebuild`. The trans preset defaults to `#5BCEFA`, `#F5A9B8`, and `#FFFFFF`.
 
 ## Complete configuration
 
@@ -213,9 +219,14 @@ animation: {
 | `countryCode` | `"US"` | Store country and Brickset region. |
 | `sourceUrl` | LEGO new-products URL | `{locale}` is replaced automatically. |
 | `pageCount` | `2` | Listing pages attempted, clamped 1-8. |
-| `poolSize` | `10` | Sets kept for cycling, at least `productCount`, maximum 50. |
-| `includeComingSoon` | `false` | Includes coming-soon products. |
-| `includePreorders` | `false` | Includes preorder products. |
+| `poolSize` | `10` | Sets kept for cycling, maximum 50. Page-sized cycling reserves at least two complete visible pages. |
+| `includeComingSoon` | `true` | Includes announced/coming-soon products. |
+| `includePreorders` | `true` | Includes preorder products. |
+| `recentOnly` | `true` | Keeps only products qualifying for the recent window. |
+| `recentDays` | `31` | Recent window in days, clamped 1-365. |
+| `unknownDatePolicy` | `"firstSeen"` | `firstSeen`, `include`, or `exclude` when no exact date exists. |
+| `newsroomAnnouncements` | `true` | Matches set numbers against recent official LEGO Newsroom articles. |
+| `newsroomPageLimit` | `30` | Maximum recent Newsroom articles inspected, clamped 1-100. |
 | `pollInterval` | `21600000` | Successful refresh interval; minimum 60 seconds. |
 | `retryInterval` | `600000` | Failure retry delay; minimum 30 seconds. |
 | `requestTimeout` | `20000` | Per-request timeout, 1-120 seconds. |
@@ -224,7 +235,7 @@ animation: {
 | `cacheMaxAge` | `604800000` | Preferred cache age. Older cache may still rescue a failure and is labeled. |
 | `bricksetApiKey` | `""` | Optional Brickset API v3 key. |
 | `metadataOverrides` | `{}` | Per-set corrections and announcement dates. |
-| `sortBy` | `"source"` | `source`, `releaseDate`, `announcedDate`, `price`, `pieceCount`, `setNumber`, or `name`. |
+| `sortBy` | `"recent"` | `recent`, `source`, `releaseDate`, `announcedDate`, `discoveredDate`, `price`, `pieceCount`, `setNumber`, or `name`. |
 | `sortDirection` | `"desc"` | `asc` or `desc`; source order stays as listed. |
 
 ### `cycle`
@@ -236,7 +247,7 @@ animation: {
 | `interval` | `12000` | Time between changes in `transition` mode; minimum 2 seconds. |
 | `scrollSpeed` | `60` | Continuous speed in CSS pixels per second, clamped 10-500. |
 | `scrollDirection` | `"left"` | `left`, `right`, `up`, or `down`. |
-| `step` | `1` | Positions advanced per cycle, 1-10. |
+| `step` | `"page"` | `"page"` replaces all visible products; 1-10 enables an intentional sliding window. |
 | `loop` | `true` | Wraps the final set to the first. |
 | `shuffle` | `false` | Shuffles each freshly fetched pool. |
 | `pauseWhenHidden` | `true` | Compatibility flag; MagicMirror suspend/resume always pauses timers. |
@@ -256,6 +267,7 @@ Continuous scrolling is supported by `hero`, `carousel`, and `filmstrip`. Other 
 | `stagger` | `18` | Brick delay, 0-250 ms. |
 | `particleCount` | `36` | LEGO brick count, 6-120. |
 | `brickSize` | `10` | Base brick size, 4-32 px. |
+| `brickColors` | `[]` | Empty uses the active theme; a hex-color array overrides it. |
 | `wallColumns` | `6` | Horizontal slices in `brickWallRebuild`, clamped 2-12. |
 | `wallRows` | `5` | Vertical slices in `brickWallRebuild`, clamped 2-12. |
 | `respectReducedMotion` | `true` | Disables motion when the OS requests it. |
@@ -267,7 +279,7 @@ Continuous scrolling is supported by `hero`, `carousel`, and `filmstrip`. Other 
 | --- | --- | --- |
 | `columns` | `2` | Grid/masonry columns, 1-10. |
 | `gap` | `12` | Card gap in pixels. |
-| `cardMinWidth` | `170` | Minimum grid-card width. |
+| `cardMinWidth` | `170` | Preferred grid/masonry card width; caps effective columns without forcing overflow. |
 | `moduleWidth` | `"auto"` | CSS width; numbers become pixels. |
 | `moduleMaxWidth` | `760` | Maximum module width in pixels. |
 | `moduleHeight` | `"auto"` | CSS height; numbers become pixels. |
@@ -368,11 +380,19 @@ Dates are conservative and truthful:
 - LEGO availability text is accepted only when it explicitly says available, releases, or launches on/from a date.
 - Shipping/backorder estimates such as “will ship by” are **not** release dates.
 - Brickset can supply regional `dateFirstAvailable` or `launchDate` values.
-- LEGO's listing has no dependable announcement-date field. `announcedDate` remains blank unless configured in `metadataOverrides`.
-- Cache discovery time is stored but never mislabeled as announcement time.
+- When `newsroomAnnouncements` is enabled, recent official LEGO Newsroom article dates are matched to exact set numbers and stored as `announcedDate` with an official article URL.
+- The LEGO product listing itself has no dependable announcement-date field. Unmatched products do not receive an invented announcement date.
+- Persistent cache discovery time is stored as `discoveredDate`. With `unknownDatePolicy: "firstSeen"`, a newly observed product on LEGO's new-products listing may qualify for the recent window, but the UI never labels that fallback as announced or released.
+- `unknownDatePolicy: "exclude"` is strict: products without an exact announcement or release date are omitted. `"include"` keeps them without date claims.
+- `sortBy: "recent"` groups exact announcements first (newest first), then exact past releases, then first-seen fallbacks. `sortDirection: "asc"` reverses that order.
 
 ```js
 data: {
+  recentOnly: true,
+  recentDays: 31,
+  unknownDatePolicy: "firstSeen",
+  newsroomAnnouncements: true,
+  newsroomPageLimit: 30,
   bricksetApiKey: "YOUR_BRICKSET_API_KEY",
   countryCode: "US",
   metadataOverrides: {
@@ -416,6 +436,7 @@ config: {
     name: "brickWallRebuild",
     duration: 1000,
     stagger: 18,
+    brickColors: [], // active theme palette
     wallColumns: 6,
     wallRows: 5
   }
@@ -430,7 +451,7 @@ config: {
   productCount: 10,
   theme: "progress",
   data: { poolSize: 20, pollInterval: 8 * 60 * 60 * 1000 },
-  cycle: { interval: 30 * 1000, step: 10, indicatorStyle: "bars" },
+  cycle: { interval: 30 * 1000, step: "page", indicatorStyle: "bars" },
   layoutSettings: { columns: 2, moduleMaxWidth: 900 },
   fields: {
     image: { width: 150, height: 140 },
@@ -516,7 +537,9 @@ Also validate today's LEGO.com payload:
 npm run validate:live
 ```
 
-The v2 release was browser-validated across all 10 layouts at desktop and 420 px widths, all 11 themes, product counts 1-10, all 23 animation choices, actual single-product advancement, missing fields, and both current/legacy LEGO payloads. Continuous hero/carousel/filmstrip motion was measured in all four directions, including an exact 449 px at 240 px/s timing check. The clipped 6x5 brick wall was inspected during fall, rebuild, and final solid phases. Every indicator variant was checked for its glyph, active state, count, and overflow behavior.
+The v2.1 release was validated in the editor across **5,584 pairwise normalized setting states** and **1,249 rendered states** covering all 10 layouts, 11 themes, 23 animations, 11 indicators, 1-10 products, device presets, columns, image positions/fits, individual fields, text effects/transforms/alignment, and minimum/maximum sizing boundaries. All 23 transitions were then lifecycle-tested separately in hero, carousel, and filmstrip with two products visible: every page changed both products, kept unique set numbers, and removed temporary particle/wall DOM. Continuous scrolling passed all 12 layout/direction cases. The live 31-day feed returned 47 canonical unique products, no duplicates, and exact LEGO Newsroom announcements newest-first on August 16, 2026.
+
+This is exhaustive value, boundary, pairwise, and targeted high-order coverage; a literal Cartesian product of every numeric and free-form CSS/string value is mathematically unbounded. The editor's **Run full compatibility audit** command is included so a deployed browser/configuration can repeat the rendered matrix.
 
 ## Troubleshooting
 
@@ -530,7 +553,7 @@ Confirm the mirror can reach `https://www.lego.com/cdn/` and test without DNS fi
 
 ### Dates are blank
 
-Blank is expected without trustworthy source data. Add a Brickset key or `metadataOverrides`.
+Blank is expected when no trustworthy exact date exists. Keep the default first-seen fallback, choose strict `unknownDatePolicy: "exclude"`, add a Brickset key, or supply `metadataOverrides`.
 
 ### Only one set appears or sets never change
 
@@ -538,7 +561,7 @@ Increase `productCount` to show several at once. For a one-set slideshow, use `p
 
 ### Too many dots
 
-Each symbol represents a valid cycle start. Increase `cycle.step`, choose a more compact shape such as dots or bars, or hide indicators.
+Each symbol represents a valid cycle page. Keep `cycle.step: "page"`, choose a more compact shape such as dots or bars, or hide indicators. A numeric step deliberately creates overlapping sliding windows.
 
 ### Motion is disabled
 
@@ -546,7 +569,7 @@ The OS may request reduced motion. This is honored by default.
 
 ### Narrow layout overflows
 
-Use `auto`, fewer columns, a smaller `cardMinWidth`, or compact/table. An explicitly large `moduleWidth` can exceed a MagicMirror region.
+Use `auto`, fewer columns, a larger `cardMinWidth` to cap effective columns, or compact/table. Grid tracks shrink inside narrow regions, but an explicitly large `moduleWidth` can still exceed its MagicMirror position.
 
 ### Custom font does not load
 
@@ -564,6 +587,7 @@ The module follows MagicMirror's documented lifecycle: `Module.register`, declar
 - [MagicMirror animation documentation](https://docs.magicmirror.builders/modules/animate.html)
 - [MagicMirror rendering documentation](https://docs.magicmirror.builders/module-development/rendering.html)
 - [Brickset API v3 documentation](https://brickset.com/article/52664/api-version-3-documentation)
+- [Official LEGO Newsroom](https://www.lego.com/en-us/aboutus/newsroom/press-releases)
 - [MMM-Carousel community module](https://github.com/barnabycolby/MMM-Carousel)
 - [MagicMirror forum CSS animation discussion](https://forum.magicmirror.builders/topic/11712/mmm-cssbackgrounds-animated-css-backgrounds)
 

@@ -16,7 +16,8 @@
 		"blur", "wipe", "shutter", "elastic", "legoBuild", "legoBreakBuild", "brickWallRebuild", "random",
 	];
 	const TEXT_EFFECTS = ["none", "shadow", "outline", "glow", "neon", "gradient", "letterpress"];
-	const SORT_OPTIONS = ["source", "releaseDate", "announcedDate", "price", "pieceCount", "setNumber", "name"];
+	const SORT_OPTIONS = ["recent", "source", "releaseDate", "announcedDate", "discoveredDate", "price", "pieceCount", "setNumber", "name"];
+	const UNKNOWN_DATE_POLICIES = ["firstSeen", "include", "exclude"];
 	const CYCLE_MODES = ["transition", "scroll"];
 	const SCROLL_DIRECTIONS = ["left", "right", "up", "down"];
 	const INDICATOR_STYLES = ["dots", "rings", "squares", "diamonds", "triangles", "stars", "hearts", "hexagons", "bars", "numbers", "none"];
@@ -52,6 +53,7 @@
 		theme: "lego",
 		showThemeDecorations: true,
 		customTheme: {
+			brickColors: ["#ffd500", "#e3000b", "#0057b8", "#ffffff"],
 			background: "rgba(0, 0, 0, 0.82)",
 			surface: "rgba(255, 255, 255, 0.08)",
 			text: "#ffffff",
@@ -69,17 +71,22 @@
 			sourceUrl: "https://www.lego.com/{locale}/categories/new-sets-and-products",
 			pageCount: 2,
 			poolSize: 10,
-			includeComingSoon: false,
-			includePreorders: false,
+			includeComingSoon: true,
+			includePreorders: true,
+			recentOnly: true,
+			recentDays: 31,
+			unknownDatePolicy: "firstSeen",
+			newsroomAnnouncements: true,
+			newsroomPageLimit: 30,
 			pollInterval: 6 * 60 * 60 * 1000,
 			retryInterval: 10 * 60 * 1000,
 			requestTimeout: 20000,
-			userAgent: "MMM-NewLegoSets/2.0 MagicMirror",
+			userAgent: "MMM-NewLegoSets/2.1 MagicMirror",
 			cacheEnabled: true,
 			cacheMaxAge: 7 * 24 * 60 * 60 * 1000,
 			bricksetApiKey: "",
 			metadataOverrides: {},
-			sortBy: "source",
+			sortBy: "recent",
 			sortDirection: "desc",
 		},
 		cycle: {
@@ -88,7 +95,7 @@
 			interval: 12000,
 			scrollSpeed: 60,
 			scrollDirection: "left",
-			step: 1,
+			step: "page",
 			loop: true,
 			shuffle: false,
 			pauseWhenHidden: true,
@@ -103,6 +110,7 @@
 			stagger: 18,
 			particleCount: 36,
 			brickSize: 10,
+			brickColors: [],
 			wallColumns: 6,
 			wallRows: 5,
 			respectReducedMotion: true,
@@ -205,6 +213,23 @@
 		return Math.min(Math.max(number(value, fallback), min), max);
 	}
 
+	function boolean(value, fallback) {
+		if (value === true || value === false) return value;
+		if (value === "true") return true;
+		if (value === "false") return false;
+		return fallback;
+	}
+
+	function colorList(value, fallback, warnings, path) {
+		if (!Array.isArray(value)) {
+			warnings.push(`${path} must be an array of CSS hex colors; using the theme palette`);
+			return fallback.slice();
+		}
+		const colors = value.filter((color) => typeof color === "string" && /^#[0-9a-f]{3,8}$/i.test(color.trim())).map((color) => color.trim());
+		if (colors.length !== value.length) warnings.push(`${path} ignored invalid non-hex colors`);
+		return colors.slice(0, 16);
+	}
+
 	function enumValue(value, allowed, fallback, warnings, path) {
 		if (allowed.includes(value)) {
 			return value;
@@ -252,11 +277,13 @@
 		config.theme = enumValue(config.theme, THEMES, DEFAULTS.theme, warnings, "theme");
 		config.productCount = Math.round(clamp(config.productCount, DEFAULTS.productCount, 1, 10));
 		config.data.pageCount = Math.round(clamp(config.data.pageCount, DEFAULTS.data.pageCount, 1, 8));
-		config.data.poolSize = Math.round(clamp(config.data.poolSize, DEFAULTS.data.poolSize, config.productCount, 50));
 		config.data.pollInterval = clamp(config.data.pollInterval, DEFAULTS.data.pollInterval, 60000, 7 * 24 * 60 * 60 * 1000);
 		config.data.retryInterval = clamp(config.data.retryInterval, DEFAULTS.data.retryInterval, 30000, config.data.pollInterval);
 		config.data.requestTimeout = clamp(config.data.requestTimeout, DEFAULTS.data.requestTimeout, 1000, 120000);
 		config.data.cacheMaxAge = clamp(config.data.cacheMaxAge, DEFAULTS.data.cacheMaxAge, 60000, 90 * 24 * 60 * 60 * 1000);
+		config.data.recentDays = Math.round(clamp(config.data.recentDays, DEFAULTS.data.recentDays, 1, 365));
+		config.data.newsroomPageLimit = Math.round(clamp(config.data.newsroomPageLimit, DEFAULTS.data.newsroomPageLimit, 1, 100));
+		config.data.unknownDatePolicy = enumValue(config.data.unknownDatePolicy, UNKNOWN_DATE_POLICIES, DEFAULTS.data.unknownDatePolicy, warnings, "data.unknownDatePolicy");
 		config.data.sortBy = enumValue(config.data.sortBy, SORT_OPTIONS, DEFAULTS.data.sortBy, warnings, "data.sortBy");
 		config.data.sortDirection = enumValue(config.data.sortDirection, ["asc", "desc"], DEFAULTS.data.sortDirection, warnings, "data.sortDirection");
 
@@ -264,13 +291,25 @@
 		config.cycle.mode = enumValue(config.cycle.mode, CYCLE_MODES, DEFAULTS.cycle.mode, warnings, "cycle.mode");
 		config.cycle.scrollSpeed = clamp(config.cycle.scrollSpeed, DEFAULTS.cycle.scrollSpeed, 10, 500);
 		config.cycle.scrollDirection = enumValue(config.cycle.scrollDirection, SCROLL_DIRECTIONS, DEFAULTS.cycle.scrollDirection, warnings, "cycle.scrollDirection");
-		config.cycle.step = Math.round(clamp(config.cycle.step, DEFAULTS.cycle.step, 1, 10));
+		if (config.cycle.step === "page") {
+			config.cycle.step = "page";
+		} else if (Number.isFinite(Number(config.cycle.step))) {
+			config.cycle.step = Math.round(clamp(config.cycle.step, 1, 1, 10));
+		} else {
+			warnings.push("cycle.step must be page or a number from 1 to 10; using page");
+			config.cycle.step = "page";
+		}
+		const pagePoolMinimum = boolean(config.cycle.enabled, DEFAULTS.cycle.enabled) && config.cycle.step === "page"
+			? Math.min(config.productCount * 2, 50)
+			: config.productCount;
+		config.data.poolSize = Math.round(clamp(config.data.poolSize, DEFAULTS.data.poolSize, pagePoolMinimum, 50));
 		config.cycle.indicatorStyle = enumValue(config.cycle.indicatorStyle, INDICATOR_STYLES, DEFAULTS.cycle.indicatorStyle, warnings, "cycle.indicatorStyle");
 		config.animation.name = enumValue(config.animation.name, ANIMATIONS, DEFAULTS.animation.name, warnings, "animation.name");
 		config.animation.duration = clamp(config.animation.duration, DEFAULTS.animation.duration, 0, 10000);
 		config.animation.stagger = clamp(config.animation.stagger, DEFAULTS.animation.stagger, 0, 250);
 		config.animation.particleCount = Math.round(clamp(config.animation.particleCount, DEFAULTS.animation.particleCount, 6, 120));
 		config.animation.brickSize = clamp(config.animation.brickSize, DEFAULTS.animation.brickSize, 4, 32);
+		config.animation.brickColors = colorList(config.animation.brickColors, DEFAULTS.animation.brickColors, warnings, "animation.brickColors");
 		config.animation.wallColumns = Math.round(clamp(config.animation.wallColumns, DEFAULTS.animation.wallColumns, 2, 12));
 		config.animation.wallRows = Math.round(clamp(config.animation.wallRows, DEFAULTS.animation.wallRows, 2, 12));
 		config.animation.randomPool = (Array.isArray(config.animation.randomPool) ? config.animation.randomPool : DEFAULTS.animation.randomPool)
@@ -301,8 +340,24 @@
 		config.fields.image.position = enumValue(config.fields.image.position, ["center", "top", "right", "bottom", "left"], DEFAULTS.fields.image.position, warnings, "fields.image.position");
 		config.fields.image.borderRadius = clamp(config.fields.image.borderRadius, DEFAULTS.fields.image.borderRadius, 0, 80);
 
+		config.showThemeDecorations = boolean(config.showThemeDecorations, DEFAULTS.showThemeDecorations);
+		["includeComingSoon", "includePreorders", "recentOnly", "newsroomAnnouncements", "cacheEnabled"].forEach((key) => {
+			config.data[key] = boolean(config.data[key], DEFAULTS.data[key]);
+		});
+		["enabled", "loop", "shuffle", "pauseWhenHidden", "pauseOnHover", "showIndicators"].forEach((key) => {
+			config.cycle[key] = boolean(config.cycle[key], DEFAULTS.cycle[key]);
+		});
+		config.animation.respectReducedMotion = boolean(config.animation.respectReducedMotion, DEFAULTS.animation.respectReducedMotion);
+		["showSeparators", "showHeader", "showFooter", "showCounter", "showUpdatedTime", "showSource"].forEach((key) => {
+			config.layoutSettings[key] = boolean(config.layoutSettings[key], DEFAULTS.layoutSettings[key]);
+		});
+		config.typography.antialias = boolean(config.typography.antialias, DEFAULTS.typography.antialias);
+		config.fields.image.show = boolean(config.fields.image.show, DEFAULTS.fields.image.show);
+		config.fields.image.showPlaceholder = boolean(config.fields.image.showPlaceholder, DEFAULTS.fields.image.showPlaceholder);
+
 		Object.keys(config.fields).filter((key) => key !== "image").forEach((key) => {
 			const field = config.fields[key];
+			field.show = boolean(field.show, DEFAULTS.fields[key].show);
 			field.order = clamp(field.order, DEFAULTS.fields[key].order, 0, 1000);
 			field.opacity = clamp(field.opacity, DEFAULTS.fields[key].opacity, 0, 1);
 			field.lineHeight = clamp(field.lineHeight, DEFAULTS.fields[key].lineHeight, 0.7, 3);
@@ -325,6 +380,7 @@
 		SCROLL_DIRECTIONS,
 		TEXT_EFFECTS,
 		THEMES,
+		UNKNOWN_DATE_POLICIES,
 		deepMerge,
 		normalize,
 	};

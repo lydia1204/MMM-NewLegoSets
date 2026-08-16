@@ -10,6 +10,7 @@
 
 	const PRESETS = {
 		mirror: {
+			brickColors: ["#ffffff", "#d6d6d6", "#8a8a8a", "#262626"],
 			background: "transparent",
 			surface: "rgba(255,255,255,0.06)",
 			text: "#ffffff",
@@ -22,6 +23,7 @@
 			decoration: "none",
 		},
 		lego: {
+			brickColors: ["#e3000b", "#ffd500", "#0057b8", "#00a650", "#ffffff"],
 			background: "rgba(15,15,15,0.92)",
 			surface: "rgba(255,255,255,0.08)",
 			text: "#ffffff",
@@ -34,6 +36,7 @@
 			decoration: "bricks",
 		},
 		tuxedo: {
+			brickColors: ["#050505", "#ffffff", "#d5b46c", "#8a8a8a"],
 			background: "rgba(5,5,5,0.96)",
 			surface: "rgba(255,255,255,0.07)",
 			text: "#ffffff",
@@ -46,6 +49,7 @@
 			decoration: "tuxedo",
 		},
 		pride: {
+			brickColors: ["#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"],
 			background: "rgba(10,10,12,0.92)",
 			surface: "rgba(255,255,255,0.1)",
 			text: "#ffffff",
@@ -58,6 +62,7 @@
 			decoration: "pride",
 		},
 		progress: {
+			brickColors: ["#000000", "#613915", "#74d7ee", "#f5a9b8", "#ffffff", "#e40303", "#ff8c00", "#ffed00", "#008026", "#004dff", "#750787"],
 			background: "rgba(9,9,12,0.94)",
 			surface: "rgba(255,255,255,0.09)",
 			text: "#ffffff",
@@ -70,6 +75,7 @@
 			decoration: "progress",
 		},
 		trans: {
+			brickColors: ["#5bcefa", "#f5a9b8", "#ffffff"],
 			background: "rgba(10,17,24,0.94)",
 			surface: "rgba(255,255,255,0.11)",
 			text: "#ffffff",
@@ -82,6 +88,7 @@
 			decoration: "trans",
 		},
 		bisexual: {
+			brickColors: ["#d60270", "#9b4f96", "#0038a8"],
 			background: "rgba(13,8,20,0.95)",
 			surface: "rgba(255,255,255,0.1)",
 			text: "#ffffff",
@@ -94,6 +101,7 @@
 			decoration: "bisexual",
 		},
 		lesbian: {
+			brickColors: ["#d52d00", "#ff9a56", "#ffffff", "#d362a4", "#a30262"],
 			background: "rgba(21,9,11,0.95)",
 			surface: "rgba(255,255,255,0.1)",
 			text: "#ffffff",
@@ -106,6 +114,7 @@
 			decoration: "lesbian",
 		},
 		nonbinary: {
+			brickColors: ["#fff430", "#ffffff", "#9c59d1", "#000000"],
 			background: "rgba(12,10,18,0.95)",
 			surface: "rgba(255,255,255,0.1)",
 			text: "#ffffff",
@@ -118,6 +127,7 @@
 			decoration: "nonbinary",
 		},
 		pansexual: {
+			brickColors: ["#ff218c", "#ffd800", "#21b1ff"],
 			background: "rgba(10,13,19,0.95)",
 			surface: "rgba(255,255,255,0.1)",
 			text: "#ffffff",

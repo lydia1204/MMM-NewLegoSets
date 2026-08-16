@@ -1,6 +1,6 @@
 {
 	"name": "mmm-new-lego-sets",
-	"version": "2.0.0",
+	"version": "2.1.0",
 	"description": "A deeply customizable MagicMirror module for newly released LEGO sets.",
 	"main": "MMM-NewLegoSets.js",
 	"keywords": [

@@ -89,6 +89,10 @@
 					<label>Indicator<select id="indicator-control" aria-label="Indicator shape"><option value="dots">●</option><option value="rings">○</option><option value="squares">■</option><option value="diamonds">◆</option><option value="triangles">▲</option><option value="stars">★</option><option value="hearts">♥</option><option value="hexagons">⬢</option><option value="bars">▬</option><option value="numbers">1 2 3</option><option value="none">—</option></select></label>
 					<label>Cycle mode<select id="cycle-mode-control"><option value="transition">Timed transition</option><option value="scroll">Auto scroll</option></select></label>
 					<label>Scroll direction<select id="scroll-direction-control" aria-label="Scroll direction"><option value="left">←</option><option value="right">→</option><option value="up">↑</option><option value="down">↓</option></select></label>
+					<label>Cycle step<select id="cycle-step-control"><option value="page">Full page</option><option value="1">1 product</option><option value="2">2 products</option><option value="3">3 products</option><option value="4">4 products</option><option value="5">5 products</option><option value="6">6 products</option><option value="7">7 products</option><option value="8">8 products</option><option value="9">9 products</option><option value="10">10 products</option></select></label>
+					<label>Product order<select id="sort-control"><option value="recent">Recent announcement/release</option><option value="source">LEGO source order</option><option value="announcedDate">Announcement date</option><option value="releaseDate">Release date</option><option value="discoveredDate">First seen date</option><option value="price">Price</option><option value="pieceCount">Piece count</option><option value="setNumber">Set number</option><option value="name">Name</option></select></label>
+					<label>Unknown dates<select id="unknown-date-control"><option value="firstSeen">Use first seen</option><option value="include">Include without date</option><option value="exclude">Require exact date</option></select></label>
+					<label>Brick colors<input id="brick-colors-control" type="text" placeholder="Theme palette" aria-label="Brick colors"></label>
 				</div>
 				<div class="range-control"><label for="count-control">Visible products <output id="count-output">1</output></label><input id="count-control" type="range" min="1" max="10" step="1" value="1"></div>
 				<div class="range-control"><label for="columns-control">Columns <output id="columns-output">2</output></label><input id="columns-control" type="range" min="1" max="10" step="1" value="2"></div>
@@ -98,6 +102,7 @@
 				<div class="range-control"><label for="width-control">Module max width <output id="width-output">760px</output></label><input id="width-control" type="range" min="160" max="1400" step="10" value="760"></div>
 				<div class="range-control"><label for="font-size-control">Base font size <output id="font-size-output">16px</output></label><input id="font-size-control" type="range" min="8" max="36" step="1" value="16"></div>
 				<div class="range-control"><label for="image-opacity-control">Image opacity <output id="image-opacity-output">100%</output></label><input id="image-opacity-control" type="range" min="0" max="1" step="0.05" value="1"></div>
+				<div class="range-control"><label for="recent-days-control">Recent window <output id="recent-days-output">31 days</output></label><input id="recent-days-control" type="range" min="1" max="365" step="1" value="31"></div>
 				<div class="control-grid">
 					<label>Polling interval<select id="poll-control"><option value="60000">1 minute</option><option value="300000">5 minutes</option><option value="900000">15 minutes</option><option value="3600000">1 hour</option><option value="21600000" selected>6 hours</option><option value="43200000">12 hours</option><option value="86400000">24 hours</option></select></label>
 					<label>Data source<select id="data-mode"><option value="live">Live LEGO.com</option><option value="sample">Sample fallback</option></select></label>
@@ -109,6 +114,10 @@
 					<label><input id="indicators-control" type="checkbox" checked> Indicators</label>
 					<label><input id="reduced-motion-control" type="checkbox" checked> Respect reduced motion</label>
 					<label><input id="loop-control" type="checkbox" checked> Loop products</label>
+					<label><input id="recent-only-control" type="checkbox" checked> Recent products only</label>
+					<label><input id="coming-soon-control" type="checkbox" checked> Announced/coming soon</label>
+					<label><input id="preorders-control" type="checkbox" checked> Preorders</label>
+					<label><input id="newsroom-control" type="checkbox" checked> LEGO Newsroom dates</label>
 				</div>
 			</section>
 
@@ -133,6 +142,8 @@
 			</section>
 
 			<section id="tab-diagnostics" class="tab-panel">
+				<div class="json-actions"><button id="run-compatibility" class="button button-primary" type="button">Run full compatibility audit</button></div>
+				<p id="compatibility-report" class="panel-note">Compatibility audit has not run in this session.</p>
 				<div id="diagnostic-summary" class="diagnostic-summary"></div>
 				<dl id="diagnostic-list" class="diagnostic-list"></dl>
 				<h2>Configuration warnings</h2>
