@@ -169,7 +169,9 @@
 		instance.scrollTimer = null;
 		config = result.config;
 		warnings = result.warnings;
-		window.localStorage.setItem(storageKey, JSON.stringify(config));
+		const persistedConfig = clone(config);
+		persistedConfig.data.bricksetApiKey = "";
+		window.localStorage.setItem(storageKey, JSON.stringify(persistedConfig));
 		instance.config = config;
 		instance.configWarnings = warnings;
 		if (!options.preserveIndex) instance.currentIndex = 0;

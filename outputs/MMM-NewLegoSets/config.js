@@ -191,6 +191,7 @@
 		}
 
 		Object.keys(override).forEach((key) => {
+			if (["__proto__", "constructor", "prototype"].includes(key)) return;
 			const next = override[key];
 			if (isPlainObject(next) && isPlainObject(base && base[key])) {
 				result[key] = deepMerge(base[key], next);

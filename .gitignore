@@ -16,4 +16,7 @@ work/pdf-guide-text.txt
 
 # Local tooling noise
 node_modules/
+.env
+.env.*
+!.env.example
 *.log

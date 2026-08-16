@@ -2,9 +2,14 @@
 	"name": "mmm-new-lego-sets-test-mirror",
 	"version": "2.1.0",
 	"private": true,
+	"license": "MIT",
 	"description": "Live local MagicMirror canvas for testing MMM-NewLegoSets.",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/lydia1204/MMM-NewLegoSets.git"
+	},
 	"scripts": {
 		"start": "node server.js",
-		"check": "node --check server.js && node --check app.js"
+		"check": "node --check server.js && node --check bootstrap.js && node --check app.js && node security-check.js"
 	}
 }

@@ -9,7 +9,15 @@
 		"lego"
 	],
 	"private": true,
-	"license": "UNLICENSED",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/lydia1204/MMM-NewLegoSets.git"
+	},
+	"bugs": {
+		"url": "https://github.com/lydia1204/MMM-NewLegoSets/issues"
+	},
+	"homepage": "https://github.com/lydia1204/MMM-NewLegoSets#readme",
 	"scripts": {
 		"validate": "node scripts/validate.js",
 		"validate:live": "node scripts/validate.js --live"

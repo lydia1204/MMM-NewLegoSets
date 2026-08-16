@@ -1,6 +1,5 @@
 "use strict";
 
-const http = require("http");
 const https = require("https");
 
 const DEFAULTS = {
@@ -24,18 +23,23 @@ const DEFAULTS = {
 	sortDirection: "desc",
 };
 
+const ALLOWED_REMOTE_HOSTS = ["lego.com", "brickset.com"];
+const MAX_RESPONSE_BYTES = 12 * 1024 * 1024;
+
 function clampInteger(value, fallback, min, max) {
 	const parsed = Number.parseInt(value, 10);
 	return Number.isFinite(parsed) ? Math.min(Math.max(parsed, min), max) : fallback;
 }
 
 function normalizeLocale(locale) {
-	return String(locale || DEFAULTS.locale).trim().toLowerCase();
+	const normalized = String(locale || DEFAULTS.locale).trim().toLowerCase();
+	return /^[a-z]{2,3}(?:-[a-z]{2})?$/.test(normalized) ? normalized : DEFAULTS.locale;
 }
 
 function countryFromLocale(locale, fallback) {
 	const parts = normalizeLocale(locale).split("-");
-	return String(fallback || parts[1] || DEFAULTS.countryCode).trim().toUpperCase();
+	const candidate = String(fallback || parts[1] || DEFAULTS.countryCode).trim().toUpperCase();
+	return /^[A-Z]{2}$/.test(candidate) ? candidate : DEFAULTS.countryCode;
 }
 
 function languageTagFromLocale(locale) {
@@ -60,11 +64,28 @@ function buildPageUrls(config = {}) {
 	return Array.from({ length: pageCount }, (_, index) => withPageParameter(template, index + 1));
 }
 
+function isAllowedRemoteUrl(url) {
+	try {
+		const parsed = new URL(url);
+		const hostname = parsed.hostname.toLowerCase();
+		return parsed.protocol === "https:"
+			&& !parsed.username
+			&& !parsed.password
+			&& (!parsed.port || parsed.port === "443")
+			&& ALLOWED_REMOTE_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
+	} catch (error) {
+		return false;
+	}
+}
+
 function requestText(url, options = {}, redirectCount = 0) {
 	return new Promise((resolve, reject) => {
+		if (!isAllowedRemoteUrl(url)) {
+			reject(new Error("Refused a non-LEGO/Brickset or non-HTTPS data source"));
+			return;
+		}
 		const parsed = new URL(url);
-		const transport = parsed.protocol === "http:" ? http : https;
-		const request = transport.request(parsed, {
+		const request = https.request(parsed, {
 			method: options.method || "GET",
 			timeout: clampInteger(options.timeout, DEFAULTS.requestTimeout, 1000, 120000),
 			headers: options.headers || {},
@@ -83,7 +104,16 @@ function requestText(url, options = {}, redirectCount = 0) {
 
 			response.setEncoding("utf8");
 			let body = "";
-			response.on("data", (chunk) => { body += chunk; });
+			let bytes = 0;
+			response.on("data", (chunk) => {
+				bytes += Buffer.byteLength(chunk);
+				if (bytes > MAX_RESPONSE_BYTES) {
+					response.destroy(new Error(`Response from ${parsed.hostname} exceeded the size limit`));
+					return;
+				}
+				body += chunk;
+			});
+			response.on("error", reject);
 			response.on("end", () => {
 				if (statusCode < 200 || statusCode >= 300) {
 					reject(new Error(`${parsed.hostname} returned HTTP ${statusCode}`));
@@ -108,7 +138,7 @@ function legoHeaders(config) {
 		"Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
 		"Accept-Language": `${language},en;q=0.8`,
 		"Cookie": `country=${countryCode}; original_country=${countryCode}; locale=${language}`,
-		"User-Agent": String(config.userAgent || DEFAULTS.userAgent),
+		"User-Agent": String(config.userAgent || DEFAULTS.userAgent).replace(/[\r\n]+/g, " ").slice(0, 200),
 	};
 }
 
@@ -312,6 +342,20 @@ function publishedDateFromArticle(html) {
 	return match ? isoDate(match[1]) : null;
 }
 
+async function mapWithConcurrency(items, limit, mapper) {
+	const results = new Array(items.length);
+	let cursor = 0;
+	const worker = async () => {
+		while (cursor < items.length) {
+			const index = cursor;
+			cursor += 1;
+			results[index] = await mapper(items[index], index);
+		}
+	};
+	await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+	return results;
+}
+
 async function fetchNewsroomAnnouncements(sets, config) {
 	if (!config.newsroomAnnouncements || !sets.length) return { records: new Map(), warning: null };
 	try {
@@ -323,14 +367,14 @@ async function fetchNewsroomAnnouncements(sets, config) {
 		const entries = parseNewsroomEntries(sitemap)
 			.filter((entry) => new Date(entry.modifiedDate).getTime() >= cutoff)
 			.slice(0, clampInteger(config.newsroomPageLimit, DEFAULTS.newsroomPageLimit, 1, 100));
-		const pages = await Promise.all(entries.map(async (entry) => {
+		const pages = await mapWithConcurrency(entries, 5, async (entry) => {
 			try {
 				const html = await requestText(entry.url, { timeout: config.requestTimeout, headers: legoHeaders(config) });
 				return { ...entry, html, publishedDate: publishedDateFromArticle(html) };
 			} catch (error) {
 				return null;
 			}
-		}));
+		});
 		const records = new Map();
 		for (const set of sets) {
 			const number = String(set.setNumber || "").replace(/-1$/, "");
@@ -519,6 +563,7 @@ module.exports = {
 	fetchRecentSets,
 	filterRecentSets,
 	finalizeRecentSets,
+	isAllowedRemoteUrl,
 	parseLegoPage,
 	parseNewsroomEntries,
 	publishedDateFromArticle,

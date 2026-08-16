@@ -217,7 +217,7 @@ Leave `animation.brickColors` empty to use the active theme's palette. A non-emp
 | --- | --- | --- |
 | `locale` | `"en-us"` | LEGO storefront and number/date locale. |
 | `countryCode` | `"US"` | Store country and Brickset region. |
-| `sourceUrl` | LEGO new-products URL | `{locale}` is replaced automatically. |
+| `sourceUrl` | LEGO new-products URL | `{locale}` is replaced automatically. Only HTTPS URLs on `lego.com` hosts are accepted. |
 | `pageCount` | `2` | Listing pages attempted, clamped 1-8. |
 | `poolSize` | `10` | Sets kept for cycling, maximum 50. Page-sized cycling reserves at least two complete visible pages. |
 | `includeComingSoon` | `true` | Includes announced/coming-soon products. |
@@ -593,4 +593,4 @@ The module follows MagicMirror's documented lifecycle: `Module.register`, declar
 
 ## License and trademarks
 
-This project is marked `UNLICENSED`. LEGO and its product names are trademarks of the LEGO Group. LGBTQ+ theme names identify color presets and do not claim ownership of the flags or communities they represent.
+The source code is available under the repository's [MIT License](../../LICENSE). LEGO and its product names are trademarks of the LEGO Group. This project is an independent community module and is not sponsored, authorized, or endorsed by the LEGO Group. LGBTQ+ theme names identify color presets and do not claim ownership of the flags or communities they represent.

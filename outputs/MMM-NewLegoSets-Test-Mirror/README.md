@@ -19,6 +19,14 @@ Choose another port when necessary:
 PORT=4180 npm start
 ```
 
+The server listens on loopback only. To deliberately make it available on a trusted LAN, opt in explicitly:
+
+```bash
+HOST=0.0.0.0 ALLOW_REMOTE=true npm start
+```
+
+Remote mode has no built-in authentication. Use a firewall and an authenticated reverse proxy before exposing it beyond a trusted network.
+
 ## What can be tested
 
 - Live LEGO.com products or the built-in fallback pool.
@@ -41,7 +49,7 @@ The Diagnostics tab reports visible item count, loaded and visible duplicate set
 
 Quick and Fields controls always update the JSON editor. The editor contains the complete normalized configuration, including default values.
 
-Applied settings are also retained in browser storage, so refreshing after a source-code edit restores the current test configuration. **Reset** returns it to the lab defaults.
+Applied settings are also retained in browser storage, so refreshing after a source-code edit restores the current test configuration. The Brickset API key is deliberately removed before storage. **Reset** returns the editor to its lab defaults.
 
 1. Edit the JSON.
 2. Select **Apply JSON**.
@@ -54,7 +62,7 @@ The downloaded file is plain JSON. Move the object into the `config` property of
 
 The local server proxies LEGO.com and official LEGO Newsroom pages through the production `lego-store.js` parser. Responses are cached in memory for 60 seconds unless **Refresh data** is selected. A failed refresh retains the existing product pool and reports the failure in the status bar. Canonical set numbers are deduplicated before display.
 
-No configuration or product data is uploaded by the test mirror.
+No configuration or product data is uploaded by the test mirror. Live data requests are limited to HTTPS hosts within `lego.com` and `brickset.com`.
 
 ## Editing source while it runs
 

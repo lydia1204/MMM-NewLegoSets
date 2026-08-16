@@ -61,6 +61,16 @@ function validateConfiguration() {
 	check(configApi.normalize({ cycle: { step: 2 } }).config.cycle.step === 2, "Numeric cycle step rejected");
 	check(configApi.normalize({ cycle: { step: "invalid" } }).config.cycle.step === "page", "Invalid cycle step did not fall back to page");
 	check(configApi.normalize({ animation: { brickColors: ["#5bcefa", "bad", "#ffffff"] } }).config.animation.brickColors.join(",") === "#5bcefa,#ffffff", "Brick color validation failed");
+	const hostileConfig = JSON.parse('{"__proto__":{"polluted":true},"constructor":{"prototype":{"polluted":true}}}');
+	const safelyMerged = configApi.deepMerge({}, hostileConfig);
+	check({}.polluted === undefined && safelyMerged.polluted === undefined, "Prototype-pollution keys were merged");
+	check(store.isAllowedRemoteUrl("https://www.lego.com/en-us/categories/new-sets-and-products"), "Official LEGO URL was rejected");
+	check(store.isAllowedRemoteUrl("https://brickset.com/api/v3.asmx/getSets"), "Official Brickset URL was rejected");
+	check(!store.isAllowedRemoteUrl("http://www.lego.com/example"), "Plain HTTP data source was accepted");
+	check(!store.isAllowedRemoteUrl("https://lego.com.attacker.example/"), "Lookalike data-source hostname was accepted");
+	check(!store.isAllowedRemoteUrl("http://127.0.0.1:8080/"), "Loopback data source was accepted");
+	check(!store.isAllowedRemoteUrl("https://user:password@www.lego.com/"), "Credential-bearing data source was accepted");
+	check(!store.isAllowedRemoteUrl("https://www.lego.com:8443/"), "Nonstandard remote port was accepted");
 
 	const boundaryCases = [
 		["data.pageCount", { data: { pageCount: -1 } }, 1], ["data.pageCount", { data: { pageCount: 99 } }, 8],
