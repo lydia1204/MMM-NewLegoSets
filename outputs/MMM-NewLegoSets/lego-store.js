@@ -143,12 +143,8 @@ function legoHeaders(config) {
 }
 
 function decodeJsonScript(value) {
-	return value
-		.replace(/&quot;/g, "\"")
-		.replace(/&#x27;/g, "'")
-		.replace(/&amp;/g, "&")
-		.replace(/&lt;/g, "<")
-		.replace(/&gt;/g, ">");
+	const entities = { "&quot;": "\"", "&#x27;": "'", "&amp;": "&", "&lt;": "<", "&gt;": ">" };
+	return String(value).replace(/&(?:quot|#x27|amp|lt|gt);/g, (entity) => entities[entity]);
 }
 
 function extractNextData(html) {

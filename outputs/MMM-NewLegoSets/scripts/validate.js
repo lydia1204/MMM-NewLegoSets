@@ -1,8 +1,7 @@
 "use strict";
 
-const fs = require("fs");
 const path = require("path");
-const vm = require("vm");
+const { spawnSync } = require("child_process");
 const configApi = require("../config");
 const store = require("../lego-store");
 const themes = require("../themes");
@@ -17,11 +16,8 @@ function check(condition, message) {
 
 function validateSyntax() {
 	["MMM-NewLegoSets.js", "config.js", "lego-store.js", "node_helper.js", "themes.js"].forEach((file) => {
-		try {
-			new vm.Script(fs.readFileSync(path.join(root, file), "utf8"), { filename: file });
-		} catch (error) {
-			failures.push(`${file}: ${error.message}`);
-		}
+		const result = spawnSync(process.execPath, ["--check", path.join(root, file)], { encoding: "utf8" });
+		if (result.status !== 0) failures.push(`${file}: ${(result.stderr || result.stdout).trim()}`);
 	});
 }
 
@@ -145,17 +141,17 @@ function validateConfiguration() {
 
 function loadModuleDefinition() {
 	let definition = null;
-	const context = {
+	const injectedGlobals = {
 		Module: { register: (_name, value) => { definition = value; } },
 		MMMNewLegoConfig: configApi,
 		MMMNewLegoThemes: themes,
 		window: { matchMedia: () => ({ matches: false }) },
-		setTimeout,
-		clearTimeout,
 		requestAnimationFrame: (callback) => callback(),
-		console,
 	};
-	vm.runInNewContext(fs.readFileSync(path.join(root, "MMM-NewLegoSets.js"), "utf8"), context, { filename: "MMM-NewLegoSets.js" });
+	Object.assign(global, injectedGlobals);
+	const modulePath = require.resolve("../MMM-NewLegoSets.js");
+	delete require.cache[modulePath];
+	require("../MMM-NewLegoSets.js");
 	return definition;
 }
 
