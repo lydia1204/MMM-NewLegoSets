@@ -158,7 +158,9 @@ function extractNextData(html) {
 }
 
 function resolveRef(state, ref) {
-	return ref && typeof ref === "object" && ref.id ? state[ref.id] || null : null;
+	if (!ref || typeof ref !== "object") return null;
+	const key = ref.__ref || ref.id;
+	return key && state[key] ? state[key] : ref.__typename ? ref : null;
 }
 
 function findField(object, prefix, parameterizedFirst = false) {
@@ -259,9 +261,18 @@ function parseLegoPage(html, sourcePageUrl = "https://www.lego.com") {
 	const nextData = extractNextData(html);
 	const state = nextData && nextData.props && nextData.props.pageProps && nextData.props.pageProps.__APOLLO_STATE__;
 	if (!state || typeof state !== "object") throw new Error("Could not find LEGO Apollo product cache");
-	const listing = currentProductRefs(state) || legacyProductRefs(state) || fallbackProductRefs(state);
-	if (!listing || !listing.refs.length) throw new Error("Could not find LEGO product listing data");
-	const sets = listing.refs.map((ref, index) => normalizeProduct(state, ref, sourcePageUrl, index)).filter(Boolean);
+	let listing;
+	let sets = [];
+	for (const strategy of [currentProductRefs, legacyProductRefs, fallbackProductRefs]) {
+		const candidate = strategy(state);
+		if (!candidate || !candidate.refs.length) continue;
+		const products = candidate.refs.map((ref, index) => normalizeProduct(state, ref, sourcePageUrl, index)).filter(Boolean);
+		if (!products.length) continue;
+		listing = candidate;
+		sets = products;
+		break;
+	}
+	if (!sets.length) throw new Error("Could not find LEGO product listing data; all parser recovery strategies failed");
 	return {
 		sets,
 		total: Number.isFinite(listing.total) ? listing.total : sets.length,

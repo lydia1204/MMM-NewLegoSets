@@ -22,6 +22,16 @@ function validateSyntax() {
 }
 
 function validateConfiguration() {
+	for (const format of ["id", "__ref", "inline"]) {
+		const product = { __typename: "SingleVariantProduct", productCode: "12345", name: "Regression product" };
+		const reference = format === "inline" ? product : { [format]: "product" };
+		const state = { product, tile: { __typename: "ProductTile", product: reference }, listing: { __typename: "ProductListingPage", tiles: [format === "inline" ? { __typename: "ProductTile", product } : { [format]: "tile" }] } };
+		const html = `<script id="__NEXT_DATA__">${JSON.stringify({ props: { pageProps: { __APOLLO_STATE__: state } } })}</script>`;
+		check(store.parseLegoPage(html).sets[0].setNumber === "12345", `Reference recovery failed: ${format}`);
+		state.listing.tiles = [];
+		const fallbackHtml = `<script id="__NEXT_DATA__">${JSON.stringify({ props: { pageProps: { __APOLLO_STATE__: state } } })}</script>`;
+		check(store.parseLegoPage(fallbackHtml).parserVersion === "entity-fallback", `Empty listing recovery failed: ${format}`);
+	}
 	configApi.LAYOUTS.forEach((layout) => check(configApi.normalize({ layout }).config.layout === layout, `Layout rejected: ${layout}`));
 	configApi.THEMES.forEach((theme) => {
 		check(configApi.normalize({ theme }).config.theme === theme, `Theme rejected: ${theme}`);
