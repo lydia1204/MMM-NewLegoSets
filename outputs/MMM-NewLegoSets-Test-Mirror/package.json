@@ -1,6 +1,6 @@
 {
 	"name": "mmm-new-lego-sets-test-mirror",
-	"version": "2.1.0",
+	"version": "2.1.1",
 	"private": true,
 	"license": "MIT",
 	"description": "Live local MagicMirror canvas for testing MMM-NewLegoSets.",
